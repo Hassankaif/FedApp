@@ -1,0 +1,31 @@
+federated-learning-system/
+├── backend/
+│   ├── main.py              # FastAPI backend
+│   └── federated_learning.db
+├── fl-server/
+│   └── server.py            # Flower FL server
+├── fl-client/
+│   ├── client.py            # Flower FL client
+│   ├── config.yaml
+│   └── data/
+│       ├── hospital_a.csv
+│       ├── hospital_b.csv
+│       └── hospital_c.csv
+├── requirements.txt
+└── README.md
+
+===============================================Execution steps:==============================
+
+backend Execution
+python main.py
+
+server Execution
+cd fl-server
+python server.py
+
+3 clients Execution
+cd fl-client
+python client.py --client-id hospital_a --data-path data/hospital_a.csv --server localhost:8080
+python client.py --client-id hospital_b --data-path data/hospital_b.csv --server <SERVER_IP>:8080
+python client.py --client-id hospital_c --data-path data/hospital_c.csv --server <SERVER_IP>:8080
+
