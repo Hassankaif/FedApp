@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const API_BASE = 'http://localhost:8000';
-const WS_URL = 'ws://localhost:8000/ws';
+// const API_BASE = 'http://localhost:8000';
+// const WS_URL = 'ws://localhost:8000/ws';
+
+const API_BASE = 'http://172.30.240.1:8000';
+const WS_URL = 'ws://172.30.240.1:8000/ws';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

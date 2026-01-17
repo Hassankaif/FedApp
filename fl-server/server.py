@@ -131,6 +131,7 @@ def main():
         strategy=strategy,
     )
     
+    
     # Notify backend that training is complete
     try:
         requests.post(f"{BACKEND_URL}/api/training/complete", timeout=5)

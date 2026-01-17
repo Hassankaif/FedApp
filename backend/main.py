@@ -452,3 +452,4 @@ if __name__ == "__main__":
     import uvicorn
     # Make sure to create the database 'FederatedLearning' in MySQL Workbench first!
     uvicorn.run(app, host="0.0.0.0", port=8000)
+    
