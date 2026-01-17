@@ -131,6 +131,7 @@ Existing solutions often:
     │Local Data  │ │Local Data  │ │Local Data  │
     └────────────┘ └────────────┘ └────────────┘
 ```
+![Logo](Project-architecture.png)
 
 ### Component Interaction Flow
 
