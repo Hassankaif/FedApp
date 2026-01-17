@@ -3,7 +3,25 @@ Backend API - Federated Learning Orchestrator
 FastAPI backend with WebSocket support for real-time updates
 Database: MySQL (Async)
 """
+"""
+Enhanced Backend API - Added Features:
+1. Model save/download
+2. Training mode (Federated vs Comparison)
+3. Centralized training
+4. Dynamic model/dataset configuration
 
+Add these to your existing main.py
+"""
+
+from fastapi import FastAPI, HTTPException, Depends, UploadFile, File
+from fastapi.responses import FileResponse
+import os
+import pickle
+import tensorflow as tf
+import numpy as np
+import pandas as pd
+from datetime import datetime
+import json
 from fastapi import FastAPI, HTTPException, Depends, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -54,6 +72,31 @@ class ClientRegistration(BaseModel):
 
 class TrainingControl(BaseModel):
     action: str
+
+class TrainingMode(BaseModel):
+    mode: str  # "federated" or "comparison"
+    dataset_file: str = None  # For comparison mode
+
+class ModelConfig(BaseModel):
+    model_code: str  # Python code for model architecture
+    dataset_path: str
+    
+class CentralizedMetrics(BaseModel):
+    accuracy: float
+    loss: float
+    training_time: float
+    timestamp: str
+
+# Create directories for storage
+os.makedirs("models", exist_ok=True)
+os.makedirs("datasets", exist_ok=True)
+os.makedirs("configs", exist_ok=True)
+# Global storage for current configuration
+current_config = {
+    "model_code": None,
+    "dataset_path": None,
+    "training_mode": "federated"
+}
 
 # WebSocket manager
 class ConnectionManager:
@@ -125,6 +168,29 @@ async def init_db(pool):
                     client_metrics JSON,
                     timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (session_id) REFERENCES training_sessions(id)
+                )
+            ''')
+            # Centralized training results
+            await cursor.execute('''
+                CREATE TABLE IF NOT EXISTS centralized_results (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    session_id INT,
+                    accuracy FLOAT,
+                    loss FLOAT,
+                    training_time FLOAT,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (session_id) REFERENCES training_sessions(id)
+                )
+            ''')
+            
+            # Model configurations
+            await cursor.execute('''
+                CREATE TABLE IF NOT EXISTS model_configs (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    model_code TEXT,
+                    dataset_path VARCHAR(255),
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    is_active BOOLEAN DEFAULT TRUE
                 )
             ''')
             
@@ -443,6 +509,368 @@ async def websocket_endpoint(websocket: WebSocket):
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
+# =============================================================================================================================
+# ============== TRAINING MODE ENDPOINTS ==============
+
+@app.post("/api/training/mode")
+async def set_training_mode(mode_config: TrainingMode):
+    """Set training mode: federated or comparison"""
+    current_config["training_mode"] = mode_config.mode
+    
+    if mode_config.mode == "comparison" and mode_config.dataset_file:
+        current_config["comparison_dataset"] = mode_config.dataset_file
+    
+    return {
+        "status": "success",
+        "mode": mode_config.mode,
+        "message": f"Training mode set to {mode_config.mode}"
+    }
+
+@app.get("/api/training/mode")
+async def get_training_mode():
+    """Get current training mode"""
+    return {
+        "mode": current_config.get("training_mode", "federated"),
+        "comparison_dataset": current_config.get("comparison_dataset")
+    }
+
+# ============== CENTRALIZED TRAINING ==============
+
+@app.post("/api/training/centralized")
+async def run_centralized_training(
+    dataset_file: UploadFile = File(...),
+    conn = Depends(get_db_conn)
+):
+    """Run centralized training for comparison"""
+    import time
+    
+    # Save uploaded dataset
+    dataset_path = f"datasets/centralized_{int(time.time())}.csv"
+    with open(dataset_path, "wb") as f:
+        f.write(await dataset_file.read())
+    
+    # Load and prepare data
+    df = pd.read_csv(dataset_path)
+    X = df.iloc[:, :-1].values
+    y = df.iloc[:, -1].values
+    
+    # Normalize
+    X = (X - X.mean(axis=0)) / (X.std(axis=0) + 1e-7)
+    
+    # Split
+    split_idx = int(0.8 * len(X))
+    X_train, X_test = X[:split_idx], X[split_idx:]
+    y_train, y_test = y[:split_idx], y[split_idx:]
+    
+    # Create model
+    model = tf.keras.Sequential([
+        tf.keras.layers.Dense(64, activation='relu', input_shape=(X.shape[1],)),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(32, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+    
+    model.compile(
+        optimizer='adam',
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+    
+    # Train
+    start_time = time.time()
+    history = model.fit(
+        X_train, y_train,
+        epochs=100,  # Same total epochs as federated (20 rounds * 5 epochs)
+        batch_size=32,
+        validation_data=(X_test, y_test),
+        verbose=0
+    )
+    training_time = time.time() - start_time
+    
+    # Evaluate
+    loss, accuracy = model.evaluate(X_test, y_test, verbose=0)
+    
+    # Save model
+    model_path = f"models/centralized_{int(time.time())}.h5"
+    model.save(model_path)
+    
+    # Store results
+    async with conn.cursor() as cursor:
+        # Get current session
+        await cursor.execute(
+            "SELECT id FROM training_sessions WHERE status = 'running' OR status = 'completed' ORDER BY id DESC LIMIT 1"
+        )
+        row = await cursor.fetchone()
+        session_id = row[0] if row else None
+        
+        await cursor.execute(
+            """INSERT INTO centralized_results 
+               (session_id, accuracy, loss, training_time)
+               VALUES (%s, %s, %s, %s)""",
+            (session_id, accuracy, loss, training_time)
+        )
+    
+    # Broadcast results
+    await manager.broadcast({
+        "type": "centralized_complete",
+        "data": {
+            "accuracy": float(accuracy),
+            "loss": float(loss),
+            "training_time": training_time
+        }
+    })
+    
+    return {
+        "status": "success",
+        "accuracy": float(accuracy),
+        "loss": float(loss),
+        "training_time": training_time,
+        "model_path": model_path
+    }
+
+@app.get("/api/training/comparison")
+async def get_comparison_results(conn = Depends(get_db_conn)):
+    """Get comparison between federated and centralized training"""
+    async with conn.cursor() as cursor:
+        # Get latest federated results
+        await cursor.execute(
+            """SELECT session_id, MAX(round) as final_round
+               FROM metrics 
+               GROUP BY session_id 
+               ORDER BY session_id DESC LIMIT 1"""
+        )
+        fed_row = await cursor.fetchone()
+        
+        if not fed_row:
+            return {"error": "No federated training data found"}
+        
+        session_id = fed_row[0]
+        
+        # Get final federated metrics
+        await cursor.execute(
+            """SELECT accuracy, loss 
+               FROM metrics 
+               WHERE session_id = %s 
+               ORDER BY round DESC LIMIT 1""",
+            (session_id,)
+        )
+        fed_metrics = await cursor.fetchone()
+        
+        # Get centralized results
+        await cursor.execute(
+            """SELECT accuracy, loss, training_time 
+               FROM centralized_results 
+               WHERE session_id = %s 
+               ORDER BY id DESC LIMIT 1""",
+            (session_id,)
+        )
+        cent_metrics = await cursor.fetchone()
+        
+        if not fed_metrics or not cent_metrics:
+            return {"error": "Incomplete comparison data"}
+        
+        return {
+            "federated": {
+                "accuracy": float(fed_metrics[0]),
+                "loss": float(fed_metrics[1])
+            },
+            "centralized": {
+                "accuracy": float(cent_metrics[0]),
+                "loss": float(cent_metrics[1]),
+                "training_time": float(cent_metrics[2])
+            },
+            "comparison": {
+                "accuracy_diff": float(cent_metrics[0] - fed_metrics[0]),
+                "loss_diff": float(fed_metrics[1] - cent_metrics[1])
+            }
+        }
+
+# ============== MODEL SAVE/DOWNLOAD ==============
+
+@app.post("/api/model/save")
+async def save_global_model(model_data: dict):
+    """Save global model weights from FL server"""
+    timestamp = int(datetime.utcnow().timestamp())
+    model_path = f"models/global_model_{timestamp}.pkl"
+    
+    with open(model_path, 'wb') as f:
+        pickle.dump(model_data['weights'], f)
+    
+    return {
+        "status": "success",
+        "model_path": model_path,
+        "timestamp": timestamp
+    }
+
+@app.get("/api/model/download/global")
+async def download_global_model():
+    """Download latest global model"""
+    # Find latest model
+    models = [f for f in os.listdir("models") if f.startswith("global_model_")]
+    if not models:
+        raise HTTPException(status_code=404, detail="No global model found")
+    
+    latest_model = sorted(models)[-1]
+    model_path = os.path.join("models", latest_model)
+    
+    return FileResponse(
+        model_path,
+        media_type="application/octet-stream",
+        filename=latest_model
+    )
+
+@app.get("/api/model/download/centralized")
+async def download_centralized_model():
+    """Download latest centralized model"""
+    models = [f for f in os.listdir("models") if f.startswith("centralized_")]
+    if not models:
+        raise HTTPException(status_code=404, detail="No centralized model found")
+    
+    latest_model = sorted(models)[-1]
+    model_path = os.path.join("models", latest_model)
+    
+    return FileResponse(
+        model_path,
+        media_type="application/octet-stream",
+        filename=latest_model
+    )
+
+@app.get("/api/models/list")
+async def list_saved_models():
+    """List all saved models"""
+    models = []
+    
+    for filename in os.listdir("models"):
+        filepath = os.path.join("models", filename)
+        models.append({
+            "filename": filename,
+            "size": os.path.getsize(filepath),
+            "created": datetime.fromtimestamp(os.path.getctime(filepath)).isoformat(),
+            "type": "global" if "global" in filename else "centralized"
+        })
+    
+    return {"models": sorted(models, key=lambda x: x['created'], reverse=True)}
+
+# ============== DYNAMIC MODEL CONFIGURATION ==============
+
+@app.post("/api/config/model")
+async def save_model_config(config: ModelConfig, conn = Depends(get_db_conn)):
+    """Save custom model architecture code"""
+    async with conn.cursor() as cursor:
+        # Deactivate old configs
+        await cursor.execute(
+            "UPDATE model_configs SET is_active = FALSE WHERE is_active = TRUE"
+        )
+        
+        # Save new config
+        await cursor.execute(
+            """INSERT INTO model_configs (model_code, dataset_path)
+               VALUES (%s, %s)""",
+            (config.model_code, config.dataset_path)
+        )
+    
+    current_config["model_code"] = config.model_code
+    current_config["dataset_path"] = config.dataset_path
+    
+    return {"status": "success", "message": "Model configuration saved"}
+
+@app.get("/api/config/model")
+async def get_model_config(conn = Depends(get_db_conn)):
+    """Get active model configuration"""
+    async with conn.cursor() as cursor:
+        await cursor.execute(
+            """SELECT model_code, dataset_path 
+               FROM model_configs 
+               WHERE is_active = TRUE 
+               ORDER BY id DESC LIMIT 1"""
+        )
+        row = await cursor.fetchone()
+    
+    if row:
+        return {
+            "model_code": row[0],
+            "dataset_path": row[1]
+        }
+    
+    # Return default configuration
+    return {
+        "model_code": """
+model = tf.keras.Sequential([
+    tf.keras.layers.Dense(64, activation='relu', input_shape=(input_shape,)),
+    tf.keras.layers.Dropout(0.2),
+    tf.keras.layers.Dense(32, activation='relu'),
+    tf.keras.layers.Dropout(0.2),
+    tf.keras.layers.Dense(1, activation='sigmoid')
+])
+
+model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=['accuracy']
+)
+        """.strip(),
+        "dataset_path": "default_diabetes.csv"
+    }
+
+@app.post("/api/config/dataset")
+async def upload_dataset(file: UploadFile = File(...)):
+    """Upload new dataset"""
+    dataset_path = f"datasets/{file.filename}"
+    
+    with open(dataset_path, "wb") as f:
+        f.write(await file.read())
+    
+    # Validate dataset
+    try:
+        df = pd.read_csv(dataset_path)
+        rows, cols = df.shape
+        
+        return {
+            "status": "success",
+            "filename": file.filename,
+            "path": dataset_path,
+            "rows": rows,
+            "columns": cols,
+            "column_names": list(df.columns)
+        }
+    except Exception as e:
+        os.remove(dataset_path)
+        raise HTTPException(status_code=400, detail=f"Invalid dataset: {str(e)}")
+
+@app.get("/api/datasets/list")
+async def list_datasets():
+    """List all uploaded datasets"""
+    datasets = []
+    
+    for filename in os.listdir("datasets"):
+        filepath = os.path.join("datasets", filename)
+        try:
+            df = pd.read_csv(filepath)
+            datasets.append({
+                "filename": filename,
+                "path": filepath,
+                "rows": len(df),
+                "columns": len(df.columns),
+                "size": os.path.getsize(filepath),
+                "created": datetime.fromtimestamp(os.path.getctime(filepath)).isoformat()
+            })
+        except:
+            pass
+    
+    return {"datasets": sorted(datasets, key=lambda x: x['created'], reverse=True)}
+
+# ============== HELPER ENDPOINT FOR CLIENTS ==============
+
+@app.get("/api/config/current")
+async def get_current_config():
+    """Get current model and dataset configuration for clients"""
+    return {
+        "model_code": current_config.get("model_code"),
+        "dataset_path": current_config.get("dataset_path"),
+        "training_mode": current_config.get("training_mode", "federated")
+    }
+# =============================================================================================================================
 @app.get("/")
 async def root():
     """Health check"""

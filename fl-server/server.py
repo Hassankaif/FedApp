@@ -1,6 +1,6 @@
 """
-Federated Learning Server (Aggregator)
-Coordinates federated training across hospital clients using Flower framework
+Enhanced Federated Learning Server
+Added: Model saving after training completion
 """
 
 import flwr as fl
@@ -10,17 +10,19 @@ from typing import List, Tuple, Dict, Optional
 import numpy as np
 import requests
 import json
+import pickle
 from datetime import datetime
 
 # Backend API configuration
 BACKEND_URL = "http://localhost:8000"
 
 class CustomFedAvg(FedAvg):
-    """Custom FedAvg strategy with backend integration"""
+    """Custom FedAvg strategy with backend integration and model saving"""
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.current_round = 0
+        self.final_parameters = None
         
     def aggregate_fit(
         self,
@@ -36,6 +38,9 @@ class CustomFedAvg(FedAvg):
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(
             server_round, results, failures
         )
+        
+        # Store final parameters
+        self.final_parameters = aggregated_parameters
         
         # Extract metrics from clients
         if results:
@@ -94,6 +99,44 @@ class CustomFedAvg(FedAvg):
                 
         except requests.exceptions.RequestException as e:
             print(f"⚠ Could not reach backend: {e}")
+    
+    def get_final_weights(self):
+        """Get final aggregated weights for saving"""
+        if self.final_parameters:
+            return fl.common.parameters_to_ndarrays(self.final_parameters)
+        return None
+
+def save_global_model(strategy: CustomFedAvg):
+    """Save final global model to backend"""
+    try:
+        weights = strategy.get_final_weights()
+        
+        if weights is None:
+            print("⚠ No weights to save")
+            return
+        
+        # Convert numpy arrays to lists for JSON serialization
+        weights_serializable = [w.tolist() for w in weights]
+        
+        payload = {
+            "weights": weights_serializable,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+        
+        response = requests.post(
+            f"{BACKEND_URL}/api/model/save",
+            json=payload,
+            timeout=10
+        )
+        
+        if response.status_code == 200:
+            data = response.json()
+            print(f"\n✓ Global model saved: {data['model_path']}")
+        else:
+            print(f"⚠ Failed to save model: {response.status_code}")
+            
+    except Exception as e:
+        print(f"⚠ Error saving model: {e}")
 
 def main():
     """Start the Flower FL server"""
@@ -107,9 +150,9 @@ def main():
     
     # Configure strategy
     strategy = CustomFedAvg(
-        fraction_fit=1.0,  # Use all available clients
+        fraction_fit=1.0,
         fraction_evaluate=1.0,
-        min_fit_clients=3,  # Minimum 3 clients required
+        min_fit_clients=3,
         min_evaluate_clients=3,
         min_available_clients=3,
     )
@@ -122,6 +165,7 @@ def main():
     print(f"  - Strategy: FedAvg")
     print(f"  - Server address: 0.0.0.0:8080")
     print(f"  - Backend API: {BACKEND_URL}")
+    print(f"  - Model saving: Enabled")
     print("="*50 + "\n")
     
     # Start Flower server
@@ -131,13 +175,16 @@ def main():
         strategy=strategy,
     )
     
+    # Save global model after training
+    print("\n📦 Saving global model...")
+    save_global_model(strategy)
     
     # Notify backend that training is complete
     try:
         requests.post(f"{BACKEND_URL}/api/training/complete", timeout=5)
-        print("\n✓ Training complete - backend notified")
+        print("✓ Training complete - backend notified")
     except:
-        print("\n⚠ Could not notify backend of completion")
+        print("⚠ Could not notify backend of completion")
 
 if __name__ == "__main__":
     main()
