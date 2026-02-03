@@ -1,0 +1,14 @@
+tunnel: bd9c4c91-0225-4030-b885-bedbb61d98c6 #<YOUR_LONG_TUNNEL_UUID_HERE>
+credentials-file: C:\Users\hassa\.cloudflared\bd9c4c91-0225-4030-b885-bedbb61d98c6.json
+
+ingress:
+  # 1. API traffic goes to FastAPI (Port 8000)
+  - hostname: api.kaif-federatedapp.me
+    service: http://localhost:8000
+  
+  # 2. FL traffic goes to Flower Server (Port 8080)
+  - hostname: fl.kaif-federatedapp.me
+    service: http://localhost:8080
+  
+  # 3. Catch-all (Required)
+  - service: http_status:404
