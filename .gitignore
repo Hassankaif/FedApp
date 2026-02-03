@@ -1,6 +1,15 @@
 # Ignore node_modules in backend and frontend
 backend/node_modules/
+backend/.env
+backend/models/
+backend/datasets/
+backend/__pycache__/
+backend/app/routers/__pycache__/
+
 frontend/node_modules/
+frontend/.env
+
+
 
 # Ignore Python virtual environment named FedApp
 FedApp/

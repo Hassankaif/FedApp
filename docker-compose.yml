@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    container_name: fedapp_backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app  # Hot reload for code
+      - ./backend/models:/app/models # Persist models
+      - ./backend/datasets:/app/datasets # Persist datasets
+    env_file:
+      - ./backend/.env
+    depends_on:
+      - db
+    networks:
+      - fed_net
+
+  frontend:
+    build: ./frontend
+    container_name: fedapp_frontend
+    ports:
+      - "5173:80"  # Maps localhost:5173 to container port 80 (nginx)
+    depends_on:
+      - backend
+    networks:
+      - fed_net
+
+  db:
+    image: mysql:8.0
+    container_name: fedapp_db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: kaif&*9363
+      MYSQL_DATABASE: FederatedLearning
+    ports:
+      - "3307:3306" # Expose on 3307 to avoid local MySQL conflicts
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - fed_net
+
+volumes:
+  db_data:
+
+networks:
+  fed_net:
+    driver: bridge
