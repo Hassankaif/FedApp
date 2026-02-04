@@ -7,15 +7,7 @@ async def init_db(pool):
     """Initialize MySQL tables"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
-            # 1. Users
-            await cursor.execute('''
-                CREATE TABLE IF NOT EXISTS users (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    username VARCHAR(255) UNIQUE NOT NULL,
-                    password_hash VARCHAR(255) NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+
             
             # 2. Training Sessions
             await cursor.execute('''
@@ -28,31 +20,6 @@ async def init_db(pool):
                 )
             ''')
             
-            # 3. Clients
-            await cursor.execute('''
-                CREATE TABLE IF NOT EXISTS clients (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    client_id VARCHAR(255) UNIQUE NOT NULL,
-                    status VARCHAR(50) DEFAULT 'offline',
-                    last_seen TIMESTAMP NULL,
-                    total_samples INT DEFAULT 0
-                )
-            ''')
-
-            # 4. Metrics
-            await cursor.execute('''
-                CREATE TABLE IF NOT EXISTS metrics (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    session_id INT,
-                    round INT NOT NULL,
-                    num_clients INT,
-                    accuracy FLOAT,
-                    loss FLOAT,
-                    client_metrics JSON,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (session_id) REFERENCES training_sessions(id)
-                )
-            ''')
 
             # 5. Centralized Results (NEW)
             await cursor.execute('''
@@ -78,11 +45,79 @@ async def init_db(pool):
                 )
             ''')
             
-            # Default Admin
+            # backend/app/database.py (Updated)
+
             await cursor.execute('''
-                INSERT IGNORE INTO users (username, password_hash) 
-                VALUES (%s, %s)
-            ''', ('admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqNe.xvWy2'))
+                CREATE TABLE IF NOT EXISTS users (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    username VARCHAR(255) UNIQUE NOT NULL,
+                    password_hash VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    email VARCHAR(255),
+                    role VARCHAR(50) DEFAULT 'admin'
+                )
+            ''')
+            
+            # 2. Projects (NEW - From Claude PDF Phase 1)
+            await cursor.execute('''
+                CREATE TABLE IF NOT EXISTS projects (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    owner_id INT NOT NULL,
+                    model_code TEXT NOT NULL,
+                    csv_schema JSON NOT NULL,
+                    expected_features INT NOT NULL,
+                    target_column VARCHAR(100) DEFAULT 'target',
+                    num_rounds INT DEFAULT 20,
+                    local_epochs INT DEFAULT 5,
+                    batch_size INT DEFAULT 32,
+                    min_clients INT DEFAULT 3,
+                    status VARCHAR(50) DEFAULT 'draft',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+            ''')
+            
+            # 3. Clients (Updated)
+            await cursor.execute('''
+                CREATE TABLE IF NOT EXISTS clients (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    client_id VARCHAR(255) UNIQUE NOT NULL,
+                    status VARCHAR(50) DEFAULT 'offline',
+                    last_seen TIMESTAMP NULL,
+                    total_samples INT DEFAULT 0,
+                    project_id INT,
+                    dataset_schema JSON,
+                    app_version VARCHAR(20),
+                    FOREIGN KEY (project_id) REFERENCES projects(id)
+                )
+            ''')
+
+            # 4. Metrics (Updated)
+            await cursor.execute('''
+                CREATE TABLE IF NOT EXISTS metrics (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    project_id INT,
+                    round INT NOT NULL,
+                    num_clients INT,
+                    accuracy FLOAT,
+                    loss FLOAT,
+                    client_metrics JSON,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (project_id) REFERENCES projects(id)
+                )
+            ''')
+
+            # Create default admin if not exists
+            await cursor.execute('''
+                INSERT IGNORE INTO users (username, password_hash, email, role) 
+                VALUES (%s, %s, %s, %s)
+            ''', ('admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqNe.xvWy2', 'admin@fedapp.me', 'admin'))
+        
+
+            
+            
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

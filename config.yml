@@ -1,14 +1,18 @@
 tunnel: bd9c4c91-0225-4030-b885-bedbb61d98c6 #<YOUR_LONG_TUNNEL_UUID_HERE>
 credentials-file: C:\Users\hassa\.cloudflared\bd9c4c91-0225-4030-b885-bedbb61d98c6.json
 
+
 ingress:
-  # 1. API traffic goes to FastAPI (Port 8000)
+  # 1. API Rule (Standard HTTP)
   - hostname: api.kaif-federatedapp.me
-    service: http://localhost:8000
+    service: http://127.0.0.1:8000
   
-  # 2. FL traffic goes to Flower Server (Port 8080)
+  # 2. FL Rule (gRPC Magic)
   - hostname: fl.kaif-federatedapp.me
-    service: http://localhost:8080
+    service: tcp://127.0.0.1:9091
+    originRequest:
+      http2Origin: true  # <--- Essential for Flower/gRPC
+      noTLSVerify: true  # (Optional) If your FL server uses self-signed certs, you can skip TLS verification.
   
-  # 3. Catch-all (Required)
+  # 3. Catch-all
   - service: http_status:404

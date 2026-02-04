@@ -7,6 +7,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from app.database import lifespan
 from app.socket_manager import manager
 from app.routers import auth, training, metrics, clients, models
+from app.controllers import project_controller 
 
 # Create directories
 os.makedirs("models", exist_ok=True)
@@ -29,6 +30,8 @@ app.include_router(training.router)
 app.include_router(metrics.router)
 app.include_router(clients.router)
 app.include_router(models.router)
+app.include_router(project_controller.router) # <--- Add this
+
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
