@@ -9,6 +9,8 @@ backend/app/routers/__pycache__/
 frontend/node_modules/
 frontend/.env
 
+zDummy/
+
 
 
 # Ignore Python virtual environment named FedApp

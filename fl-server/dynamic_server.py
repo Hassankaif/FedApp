@@ -5,7 +5,9 @@ import requests
 import sys
 import argparse
 
-API_BASE = "https://api.kaif-federatedapp.me"
+# API_BASE = "https://api.kaif-federatedapp.me"
+# When running in Docker, 'backend' is the hostname of the API container
+API_BASE = "http://backend:8000"
 
 class DynamicFedAvg(FedAvg):
     def __init__(self, project_id: int, *args, **kwargs):
@@ -54,9 +56,9 @@ def main():
         min_available_clients=1,
     )
     
-    print(f"Starting FL Server for Project {args.project_id} on Port 9091")
+    print(f"Starting FL Server for Project {args.project_id} on Port 8080")
     fl.server.start_server(
-        server_address="0.0.0.0:9091",
+        server_address="0.0.0.0:8080",
         config=fl.server.ServerConfig(num_rounds=5),
         strategy=strategy,
     )
