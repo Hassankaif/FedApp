@@ -1,82 +1,89 @@
-from fastapi import APIRouter, Depends, HTTPException
-from app.database import get_db_conn
-from app.socket_manager import manager
-from app.models.schemas import MetricsReport
-import json
+# /fedapp/fl-server/dynamic_server.py
+import flwr as fl
+from flwr.server.strategy import FedAvg
+import requests
+import time
+import argparse
+import sys
 
-# Use a consistent prefix for clarity
-router = APIRouter(prefix="/api/metrics", tags=["metrics"])
+# Internal Docker URL
+API_BASE = "http://backend:8000"
 
-@router.post("/report")
-async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
-    """Receive metrics from FL server and broadcast to frontend"""
+class DynamicFedAvg(FedAvg):
+    def __init__(self, project_id: int, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.project_id = project_id
 
-    async with conn.cursor() as cursor:
-        # Check if project exists
-        await cursor.execute("SELECT id FROM projects WHERE id = %s", (metrics.project_id,))
-        if not await cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Project not found")
+    def aggregate_fit(self, server_round, results, failures):
+        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, results, failures)
+        
+        if results:
+            accuracies = [r.metrics.get("accuracy", 0) for _, r in results]
+            avg_accuracy = sum(accuracies) / len(accuracies) if accuracies else 0
+            
+            try:
+                requests.post(
+                    f"{API_BASE}/api/metrics/report",
+                    json={
+                        "project_id": self.project_id,
+                        "round": server_round,
+                        "accuracy": avg_accuracy,
+                        "num_clients": len(results)
+                    }
+                )
+                print(f"✅ Reported round {server_round} (Acc: {avg_accuracy:.4f})")
+            except Exception as e:
+                print(f"❌ Failed to report metrics: {e}")
+                
+        return aggregated_parameters, aggregated_metrics
 
-        # Store metrics
-        await cursor.execute(
-            """INSERT INTO metrics 
-               (project_id, round, num_clients, accuracy, loss, client_metrics, timestamp)
-               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
-            (
-                metrics.project_id,
-                metrics.round,
-                metrics.num_clients,
-                metrics.accuracy,
-                metrics.loss,
-                json.dumps(metrics.client_metrics),
-                metrics.timestamp,
-            ),
-        )
+def run_server(project_id):
+    print(f"🚀 Starting Training for Project {project_id}...")
+    
+    strategy = DynamicFedAvg(
+        project_id=project_id,
+        min_fit_clients=1, 
+        min_available_clients=1,
+    )
+    
+    # Start the Server (Blocking)
+    fl.server.start_server(
+        server_address="0.0.0.0:8080",
+        config=fl.server.ServerConfig(num_rounds=5),
+        strategy=strategy,
+    )
+    print("🏁 Training Session Complete.")
 
-        # Optional: update project status if last round reached
-        if metrics.round >= 5:  # adjust threshold dynamically later
-            await cursor.execute(
-                "UPDATE projects SET status = 'completed' WHERE id = %s",
-                (metrics.project_id,),
-            )
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--project-id', type=int, default=1)
+    args = parser.parse_args()
 
-    # Broadcast to WebSocket clients 🚀
-    message = {
-        "type": "metrics_update",
-        "data": {
-            "project_id": metrics.project_id,
-            "round": metrics.round,
-            "accuracy": metrics.accuracy,
-            "loss": metrics.loss,
-            "num_clients": metrics.num_clients,
-            "timestamp": metrics.timestamp,
-        },
-    }
-    await manager.broadcast(json.dumps(message))
+    print("⏳ FL Server is ready. Waiting for 'training' status...")
 
-    return {"status": "success"}
+    while True:
+        try:
+            # Poll the API to check project status
+            # We assume Project 1 for now, but you can make this dynamic
+            res = requests.get(f"{API_BASE}/api/projects/{args.project_id}/model-code")
+            if res.status_code == 200:
+                # We need a status field. For now, let's implement a simple trigger endpoint
+                # OR: You can add a '/api/training/status' endpoint that returns "active" or "idle"
+                
+                # Check the status check endpoint (We will create this next)
+                status_res = requests.get(f"{API_BASE}/api/training/status")
+                data = status_res.json()
+                
+                if data.get("status") == "training":
+                    run_server(args.project_id)
+                    
+                    # After training, reset status to idle so we don't loop forever
+                    requests.post(f"{API_BASE}/api/training/mode", json={"mode": "idle"})
+                    
+        except Exception as e:
+            print(f"⚠️ Polling error: {e}")
+        
+        time.sleep(5) # Check every 5 seconds
 
-
-@router.get("/latest")
-async def get_latest_metrics(project_id: int, conn = Depends(get_db_conn)):
-    """Get metrics for the latest rounds of a given project"""
-    async with conn.cursor() as cursor:
-        await cursor.execute(
-            """SELECT round, accuracy, loss, num_clients, timestamp 
-               FROM metrics WHERE project_id = %s ORDER BY round ASC""",
-            (project_id,),
-        )
-        rows = await cursor.fetchall()
-
-    return {
-        "metrics": [
-            {
-                "round": row[0],
-                "accuracy": float(row[1]) if row[1] else 0,
-                "loss": float(row[2]) if row[2] else 0,
-                "num_clients": row[3],
-                "timestamp": row[4],
-            }
-            for row in rows
-        ]
-    }
+if __name__ == "__main__":
+    main()
