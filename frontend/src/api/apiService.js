@@ -1,79 +1,108 @@
 // frontend/src/api/apiService.js
-const API_URL = import.meta.env.VITE_API_URL;
+import axios from "axios";
 
-const getHeaders = (token) => ({
-  'Content-Type': 'application/json',
-  'Authorization': `Bearer ${token}`
+// 🚀 PRODUCTION SERVER IP (DigitalOcean)
+const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_URL = `${API_BASE_URL}/api`;
+
+// Create the Axios instance
+const api = axios.create({
+  baseURL: API_URL,
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
-export const apiService = {
-  // Auth
-  login: async (username, password) => {
-    const res = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    if (!res.ok) throw new Error('Login failed');
-    return res.json();
+// 1. REQUEST INTERCEPTOR (Attaches Token Automatically)
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem("token");
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
   },
+  (error) => Promise.reject(error)
+);
 
-  // Training Control
-  startTraining: async (token) => {
-    return fetch(`${API_URL}/training/start`, {
-      method: 'POST',
-      headers: getHeaders(token)
-    }).then(res => res.json());
-  },
-
-  getStatus: async (token) => {
-    return fetch(`${API_URL}/training/status`, {
-      headers: getHeaders(token)
-    }).then(res => res.json());
-  },
-
-  setTrainingMode: async (token, mode) => {
-    return fetch(`${API_URL}/training/mode`, {
-      method: 'POST',
-      headers: getHeaders(token),
-      body: JSON.stringify({ mode })
-    }).then(res => res.json());
-  },
-
-  // Data & Models
-  getMetrics: async (token) => {
-    return fetch(`${API_URL}/metrics/latest`, {
-      headers: getHeaders(token)
-    }).then(res => res.json());
-  },
-
-  getSavedModels: async (token) => {
-    return fetch(`${API_URL}/models/list`, {
-      headers: getHeaders(token)
-    }).then(res => res.json());
-  },
-
-  getDatasets: async (token) => {
-    return fetch(`${API_URL}/datasets/list`, {
-      headers: getHeaders(token)
-    }).then(res => res.json());
-  },
-
-  // Comparison
-  getComparison: async (token) => {
-    return fetch(`${API_URL}/training/comparison`, {
-      headers: getHeaders(token)
-    }).then(res => res.json());
-  },
-
-  runCentralized: async (token, file) => {
-    const formData = new FormData();
-    formData.append('dataset_file', file);
-    
-    return fetch(`${API_URL}/training/centralized`, {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}` }, // No Content-Type for FormData
-      body: formData
-    }).then(res => res.json());
+// 2. RESPONSE INTERCEPTOR (Handles Errors Globally)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // If token expires, kick user out
+      localStorage.removeItem("token");
+      window.location.href = "/login";
+    }
+    return Promise.reject(error);
   }
+);
+
+export const apiService = {
+  // ---------- Auth ----------
+  login: async (username, password) => {
+    const res = await api.post("/auth/login", { username, password });
+    return res.data;
+  },
+
+  // ---------- Projects ----------
+  createProject: async (data) => {
+    const res = await api.post("/projects/", data);
+    return res.data;
+  },
+
+  // ---------- Training ----------
+  startTraining: async () => {
+    const res = await api.post("/training/start");
+    return res.data;
+  },
+
+  getStatus: async () => {
+    const res = await api.get("/training/status");
+    return res.data;
+  },
+
+  setTrainingMode: async (mode) => {
+    const res = await api.post("/training/mode", { mode });
+    return res.data;
+  },
+
+  getComparison: async () => {
+    const res = await api.get("/training/comparison");
+    return res.data;
+  },
+
+  runCentralized: async (file) => {
+    const formData = new FormData();
+    formData.append("dataset_file", file);
+
+    const res = await api.post("/training/centralized", formData, {
+      headers: { "Content-Type": undefined }, // Axios handles FormData headers
+    });
+    return res.data;
+  },
+
+  // ---------- Data & Models ----------
+  getMetrics: async () => {
+    const res = await api.get("/metrics/latest");
+    return res.data;
+  },
+
+  getSavedModels: async () => {
+    const res = await api.get("/models/list");
+    return res.data;
+  },
+
+  getDatasets: async () => {
+    const res = await api.get("/datasets/list");
+    return res.data;
+  },
+
+  // ---------- Clients ----------
+  getClients: async () => {
+    const res = await api.get("/clients/");
+    return res.data;
+  },
 };
+
+export default apiService;

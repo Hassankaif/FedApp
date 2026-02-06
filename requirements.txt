@@ -19,6 +19,7 @@ python-multipart==0.0.6
 PyJWT==2.8.0
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+axios
 
 # Database
 aiosqlite==0.19.0
@@ -67,3 +68,8 @@ pyyaml==6.0.1
 # # Utilities
 # python-dotenv==1.0.0
 # pyyaml==6.0.1
+
+
+
+
+# python electron-client/python/universal_client.py --project-id 1 --client-id do_client --data-path electron-client/python/data/hospital_a.csv --server 139.59.87.244:8080 --api-url http://139.59.87.244:8000
