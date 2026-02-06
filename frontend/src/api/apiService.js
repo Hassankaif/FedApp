@@ -45,10 +45,21 @@ export const apiService = {
     return res.data;
   },
 
-  // ---------- Projects ----------
+    // --- Projects (UPDATED) ---
   createProject: async (data) => {
     const res = await api.post("/projects/", data);
     return res.data;
+  },
+
+  getProjects: async (ownerId = 1) => {
+    // Backend expects owner_id query param
+    const res = await api.get(`/projects/?owner_id=${ownerId}`);
+    return res.data.projects; 
+  },
+
+  getProjectDetails: async (projectId) => {
+    const res = await api.get(`/projects/${projectId}`);
+    return res.data.project;
   },
 
   // ---------- Training ----------
@@ -106,3 +117,4 @@ export const apiService = {
 };
 
 export default apiService;
+
