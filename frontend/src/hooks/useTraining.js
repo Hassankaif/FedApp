@@ -31,7 +31,7 @@ export const useTraining = (token) => {
     fetchData();
 
     // WebSocket Connection
-    ws.current = new WebSocket(import.meta.env.VITE_WS_URL);
+    ws.current = new WebSocket(import.meta.env.VITE_WS_URL || "ws://139.59.87.244:8000/ws");
     ws.current.onmessage = (event) => {
       const msg = JSON.parse(event.data);
       if (msg.type === 'metrics_update') {

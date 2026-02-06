@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL || 'http://139.59.87.244:8000';
 console.log('API BASE URL:', API_BASE);
 
 export const useAuth = () => {

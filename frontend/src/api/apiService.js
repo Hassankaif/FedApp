@@ -5,6 +5,8 @@ import axios from "axios";
 // const API_BASE_URL = import.meta.env.VITE_API_URL;
 const API_BASE_URL = "http://139.59.87.244:8000"; // Hardcoded for now, can switch to env variable later
 const API_URL = `${API_BASE_URL}/api`;
+// const VITE_WS_URL= "ws://139.59.87.244:8000/ws"; // WebSocket URL
+
 
 // Create the Axios instance
 const api = axios.create({
