@@ -1,67 +1,82 @@
-# fl-server/dynamic_server.py (NEW)
-import flwr as fl
-from flwr.server.strategy import FedAvg
-import requests
-import sys
-import argparse
+from fastapi import APIRouter, Depends, HTTPException
+from app.database import get_db_conn
+from app.socket_manager import manager
+from app.models.schemas import MetricsReport
+import json
 
-# API_BASE = "https://api.kaif-federatedapp.me"
-# When running in Docker, 'backend' is the hostname of the API container
-API_BASE = "http://backend:8000"
+# Use a consistent prefix for clarity
+router = APIRouter(prefix="/api/metrics", tags=["metrics"])
 
-class DynamicFedAvg(FedAvg):
-    def __init__(self, project_id: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.project_id = project_id
+@router.post("/report")
+async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
+    """Receive metrics from FL server and broadcast to frontend"""
 
-    def aggregate_fit(self, server_round, results, failures):
-        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, results, failures)
-        
-        if results:
-            # Calculate metrics
-            accuracies = [r.metrics.get("accuracy", 0) for _, r in results]
-            avg_accuracy = sum(accuracies) / len(accuracies) if accuracies else 0
-            
-            # Report to Backend API [cite: 464]
-            try:
-                requests.post(
-                    f"{API_BASE}/api/metrics/report", # Ensure this route exists in metrics.router
-                    json={
-                        "project_id": self.project_id,
-                        "round": server_round,
-                        "accuracy": avg_accuracy,
-                        "num_clients": len(results)
-                    }
-                )
-                print(f"Reported round {server_round} metrics to backend.")
-            except Exception as e:
-                print(f"Failed to report metrics: {e}")
-                
-        return aggregated_parameters, aggregated_metrics
+    async with conn.cursor() as cursor:
+        # Check if project exists
+        await cursor.execute("SELECT id FROM projects WHERE id = %s", (metrics.project_id,))
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Project not found")
 
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--project-id', type=int, required=True)
-    args = parser.parse_args()
+        # Store metrics
+        await cursor.execute(
+            """INSERT INTO metrics 
+               (project_id, round, num_clients, accuracy, loss, client_metrics, timestamp)
+               VALUES (%s, %s, %s, %s, %s, %s, %s)""",
+            (
+                metrics.project_id,
+                metrics.round,
+                metrics.num_clients,
+                metrics.accuracy,
+                metrics.loss,
+                json.dumps(metrics.client_metrics),
+                metrics.timestamp,
+            ),
+        )
 
-    # 1. Fetch Config from API [cite: 482]
-    print(f"Fetching config for Project {args.project_id}...")
-    # You might need to add a specific endpoint for full config or use the public one
-    # For now, let's assume we use the public one and defaults
-    
-    # 2. Start Server
-    strategy = DynamicFedAvg(
-        project_id=args.project_id,
-        min_fit_clients=1, # These should ideally come from the API config
-        min_available_clients=1,
-    )
-    
-    print(f"Starting FL Server for Project {args.project_id} on Port 8080")
-    fl.server.start_server(
-        server_address="0.0.0.0:8080",
-        config=fl.server.ServerConfig(num_rounds=5),
-        strategy=strategy,
-    )
+        # Optional: update project status if last round reached
+        if metrics.round >= 5:  # adjust threshold dynamically later
+            await cursor.execute(
+                "UPDATE projects SET status = 'completed' WHERE id = %s",
+                (metrics.project_id,),
+            )
 
-if __name__ == "__main__":
-    main()
+    # Broadcast to WebSocket clients 🚀
+    message = {
+        "type": "metrics_update",
+        "data": {
+            "project_id": metrics.project_id,
+            "round": metrics.round,
+            "accuracy": metrics.accuracy,
+            "loss": metrics.loss,
+            "num_clients": metrics.num_clients,
+            "timestamp": metrics.timestamp,
+        },
+    }
+    await manager.broadcast(json.dumps(message))
+
+    return {"status": "success"}
+
+
+@router.get("/latest")
+async def get_latest_metrics(project_id: int, conn = Depends(get_db_conn)):
+    """Get metrics for the latest rounds of a given project"""
+    async with conn.cursor() as cursor:
+        await cursor.execute(
+            """SELECT round, accuracy, loss, num_clients, timestamp 
+               FROM metrics WHERE project_id = %s ORDER BY round ASC""",
+            (project_id,),
+        )
+        rows = await cursor.fetchall()
+
+    return {
+        "metrics": [
+            {
+                "round": row[0],
+                "accuracy": float(row[1]) if row[1] else 0,
+                "loss": float(row[2]) if row[2] else 0,
+                "num_clients": row[3],
+                "timestamp": row[4],
+            }
+            for row in rows
+        ]
+    }
