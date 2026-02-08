@@ -9,9 +9,20 @@ from app.config import settings
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 security = HTTPBearer()
 
-# --- REGISTER ---
+# --- REGISTER (SECURED) ---
 @router.post("/register", response_model=UserResponse)
 async def register(user: UserCreate, conn = Depends(get_db_conn)):
+    # 🔒 SECURITY ENFORCEMENT: Strictly forbid 'admin' creation via public API
+    if user.role.lower() == "admin":
+        raise HTTPException(
+            status_code=403, 
+            detail="Admin registration is restricted. Please contact support."
+        )
+    
+    # Optional: Force strict roles (if you only want 'client' and 'researcher')
+    if user.role not in ["client", "researcher"]:
+        user.role = "client" # Default to client for safety
+
     async with conn.cursor() as cursor:
         # 1. Check if email exists
         await cursor.execute("SELECT id FROM users WHERE email = %s", (user.email,))

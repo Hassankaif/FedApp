@@ -48,6 +48,13 @@ export const apiService = {
     return res.data;
   },
 
+  // 🚀 NEW: Registration Function
+  register: async (userData) => {
+    // userData should contain: { email, password, full_name, role }
+    const res = await api.post("/auth/register", userData);
+    return res.data;
+  },
+
     // --- Projects (UPDATED) ---
   createProject: async (data) => {
     const res = await api.post("/projects/", data);

@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'; // 👈 Import Routes & Route
 import Login from './pages/Login';
+import Signup from './pages/Signup'; // 👈 Import Signup
 import Dashboard from './pages/Dashboard';
-import { apiService } from './api/apiService'; // Import the API service
+import { apiService } from './api/apiService';
 
 function App() {
   const [token, setToken] = useState(localStorage.getItem('token'));
-  const [error, setError] = useState(null); // Add error state
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
-  // Check if token is valid on load (Optional but recommended)
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
     if (storedToken) setToken(storedToken);
@@ -15,20 +17,14 @@ function App() {
 
   const handleLogin = async (username, password) => {
     try {
-      // 1. Call the Backend to verify credentials
       const data = await apiService.login(username, password);
-      
-      // 2. If successful, backend returns { access_token: "..." }
       const newToken = data.access_token;
-      
-      // 3. NOW it is safe to save the token
       localStorage.setItem('token', newToken);
       setToken(newToken);
       setError(null);
-      
+      navigate('/'); // Redirect to dashboard
     } catch (err) {
       console.error("Login failed:", err);
-      // Display error message from backend or default text
       setError(err.response?.data?.detail || "Invalid credentials. Please try again.");
     }
   };
@@ -37,17 +33,26 @@ function App() {
     localStorage.removeItem('token');
     setToken(null);
     setError(null);
+    navigate('/login');
   };
 
+  // 🚀 UPDATED RETURN STRUCTURE WITH ROUTING
   return (
-    <div className="min-h-screen bg-gray-100">
-      {!token ? (
-        // Pass the error state to Login so the user sees why it failed
-        <Login onLogin={handleLogin} error={error} />
-      ) : (
-        <Dashboard token={token} onLogout={handleLogout} />
-      )}
-    </div>
+    <Routes>
+      {/* Public Routes */}
+      <Route path="/login" element={
+        !token ? <Login onLogin={handleLogin} error={error} /> : <Navigate to="/" />
+      } />
+      
+      <Route path="/signup" element={
+        !token ? <Signup /> : <Navigate to="/" />
+      } />
+
+      {/* Private Routes */}
+      <Route path="/" element={
+        token ? <Dashboard token={token} onLogout={handleLogout} /> : <Navigate to="/login" />
+      } />
+    </Routes>
   );
 }
 
