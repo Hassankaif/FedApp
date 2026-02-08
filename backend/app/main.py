@@ -15,14 +15,28 @@ os.makedirs("datasets", exist_ok=True)
 os.makedirs("configs", exist_ok=True)
 
 app = FastAPI(title="Federated Learning API", lifespan=lifespan)
+# backend/app/main.py
+
+# ... imports ...
+
+app = FastAPI(title="Federated Learning API", lifespan=lifespan)
+
+# 🚀 FIX: Replace ["*"] with your actual Frontend IP
+origins = [
+    "http://139.59.87.244:5173",  # DigitalOcean Frontend
+    "http://139.59.87.244",       # Standard Port 80
+    "http://localhost:5173",      # Local Testing
+    "http://127.0.0.1:5173"
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,        # <--- Explicit Origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Include Routers
 app.include_router(auth.router)
