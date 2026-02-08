@@ -1,13 +1,31 @@
 from pydantic import BaseModel
 from typing import Dict, Optional
 
-class LoginRequest(BaseModel):
-    username: str
-    password: str
+from pydantic import BaseModel, EmailStr
+from typing import Optional
 
+# --- Auth Models ---
 class Token(BaseModel):
     access_token: str
     token_type: str
+    user: dict  # Return user info with token
+
+class LoginRequest(BaseModel):
+    username: str  # We use email as username
+    password: str
+
+# --- User Models ---
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+    role: str = "researcher"  # admin, researcher, hospital
+
+class UserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    full_name: str
+    role: str
 
 class MetricsReport(BaseModel):
     round: int
