@@ -1,15 +1,14 @@
-# backend/app/database.py - FIXED VERSION
 import aiomysql
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from app.config import settings
 
 async def init_db(pool):
-    """Initialize MySQL tables - FIXED"""
+    """Initialize MySQL tables - FULL PRODUCTION SCHEMA"""
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
             
-        # 1. Users Table (Updated for Email Login)
+            # 1. Users Table
             await cursor.execute('''
                 CREATE TABLE IF NOT EXISTS users (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -21,7 +20,7 @@ async def init_db(pool):
                 )
             ''')
             
-            # 2. Projects Table (NEW)
+            # 2. Projects Table
             await cursor.execute('''
                 CREATE TABLE IF NOT EXISTS projects (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -66,7 +65,7 @@ async def init_db(pool):
                 )
             ''')
             
-            # 4. Clients (Updated)
+            # 4. Clients
             await cursor.execute('''
                 CREATE TABLE IF NOT EXISTS clients (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -83,7 +82,7 @@ async def init_db(pool):
                 )
             ''')
             
-            # 5. Metrics (Updated)
+            # 5. Metrics
             await cursor.execute('''
                 CREATE TABLE IF NOT EXISTS metrics (
                     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -126,11 +125,11 @@ async def init_db(pool):
                 )
             ''')
             
-            # Insert default admin
+            # Insert default admin (FIXED: Uses email & hashed_password)
             await cursor.execute('''
-                INSERT IGNORE INTO users (username, password_hash, email, role) 
+                INSERT IGNORE INTO users (email, hashed_password, full_name, role) 
                 VALUES (%s, %s, %s, %s)
-            ''', ('admin', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqNe.xvWy2', 'admin@fedapp.me', 'admin'))
+            ''', ('admin@fedapp.me', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqNe.xvWy2', 'Super Admin', 'admin'))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
