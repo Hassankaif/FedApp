@@ -9,14 +9,14 @@ async def init_db(pool):
     async with pool.acquire() as conn:
         async with conn.cursor() as cursor:
             
-            # 1. Users Table
+        # 1. Users Table (Updated for Email Login)
             await cursor.execute('''
                 CREATE TABLE IF NOT EXISTS users (
                     id INT AUTO_INCREMENT PRIMARY KEY,
-                    username VARCHAR(255) UNIQUE NOT NULL,
-                    password_hash VARCHAR(255) NOT NULL,
-                    email VARCHAR(255),
-                    role VARCHAR(50) DEFAULT 'admin',
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    hashed_password VARCHAR(255) NOT NULL,
+                    full_name VARCHAR(255),
+                    role VARCHAR(50) DEFAULT 'researcher',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
