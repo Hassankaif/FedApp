@@ -44,3 +44,6 @@ async def get_clients(conn = Depends(get_db_conn)):
             for row in rows
         ]
     }
+    
+# defines api endpoints for client registration and retrieval of registered clients. It interacts with the database to store and fetch client information, and uses a socket manager to broadcast client registration events to connected WebSocket clients.
+# in future, we can add more endpoints for updating client status, deleting clients, or fetching specific client details.

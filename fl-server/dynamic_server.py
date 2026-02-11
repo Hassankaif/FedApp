@@ -1,89 +1,142 @@
-# /fedapp/fl-server/dynamic_server.py
 import flwr as fl
-from flwr.server.strategy import FedAvg
+from flwr.server.strategy import FedAvg, FedProx
 import requests
 import time
-import argparse
-import sys
+import pickle
+import os
+from datetime import datetime
 
-# Internal Docker URL
-API_BASE = "http://backend:8000"
+# Config
+API_BASE = os.getenv("API_BASE", "http://localhost:8000")
+POLL_INTERVAL = 3
 
-class DynamicFedAvg(FedAvg):
-    def __init__(self, project_id: int, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.project_id = project_id
+# --- 1. The Reporting Logic (Mixin) ---
+# We use a Mixin so we can attach this logic to EITHER strategy
+class ReportingMixin:
+    def report_metrics(self, server_round, results):
+        if not results:
+            return
+        
+        # Calculate Averages
+        accuracies = [r.metrics.get("accuracy", 0) for _, r in results]
+        losses = [r.metrics.get("loss", 0) for _, r in results]
+        avg_acc = sum(accuracies) / len(accuracies)
+        avg_loss = sum(losses) / len(losses)
 
+        # Send to Backend
+        try:
+            payload = {
+                "round": server_round,
+                "num_clients": len(results),
+                "accuracy": avg_acc,
+                "loss": avg_loss,
+                "client_metrics": {"accuracies": accuracies},
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            requests.post(f"{API_BASE}/api/training/metrics", json=payload)
+            print(f"✅ Round {server_round} ({self.__class__.__name__}): Acc={avg_acc:.4f}")
+        except Exception as e:
+            print(f"❌ Reporting failed: {e}")
+
+    def save_and_upload_model(self, parameters):
+        if not parameters: 
+            return
+        
+        timestamp = int(time.time())
+        filename = f"global_model_{timestamp}.pkl"
+        
+        # Save locally
+        with open(filename, "wb") as f:
+            pickle.dump(parameters, f)
+        
+        # Upload
+        try:
+            with open(filename, "rb") as f:
+                requests.post(
+                    f"{API_BASE}/api/model/save", 
+                    files={'file': (filename, f, 'application/octet-stream')}
+                )
+            print(f"💾 Model uploaded: {filename}")
+        except Exception as e:
+            print(f"⚠️ Upload failed: {e}")
+        
+        if os.path.exists(filename):
+            os.remove(filename)
+
+# --- 2. The Custom Strategies ---
+
+class CustomFedAvg(FedAvg, ReportingMixin):
     def aggregate_fit(self, server_round, results, failures):
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, results, failures)
-        
-        if results:
-            accuracies = [r.metrics.get("accuracy", 0) for _, r in results]
-            avg_accuracy = sum(accuracies) / len(accuracies) if accuracies else 0
-            
-            try:
-                requests.post(
-                    f"{API_BASE}/api/metrics/report",
-                    json={
-                        "project_id": self.project_id,
-                        "round": server_round,
-                        "accuracy": avg_accuracy,
-                        "num_clients": len(results)
-                    }
-                )
-                print(f"✅ Reported round {server_round} (Acc: {avg_accuracy:.4f})")
-            except Exception as e:
-                print(f"❌ Failed to report metrics: {e}")
-                
+        self.report_metrics(server_round, results)
+        if aggregated_parameters:
+            self.save_and_upload_model(aggregated_parameters)
         return aggregated_parameters, aggregated_metrics
 
-def run_server(project_id):
-    print(f"🚀 Starting Training for Project {project_id}...")
+class CustomFedProx(FedProx, ReportingMixin):
+    def aggregate_fit(self, server_round, results, failures):
+        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, results, failures)
+        self.report_metrics(server_round, results)
+        if aggregated_parameters:
+            self.save_and_upload_model(aggregated_parameters)
+        return aggregated_parameters, aggregated_metrics
+
+# --- 3. The Main Loop ---
+
+def run_fl_session(session_id, strategy_name):
+    print(f"🚀 Starting Session {session_id} using {strategy_name}")
     
-    strategy = DynamicFedAvg(
-        project_id=project_id,
-        min_fit_clients=1, 
-        min_available_clients=1,
-    )
-    
-    # Start the Server (Blocking)
+    # DYNAMIC STRATEGY SELECTION
+    if strategy_name == "FedProx":
+        strategy = CustomFedProx(
+            proximal_mu=0.1,  # Force regularization for non-IID data
+            fraction_fit=1.0,
+            fraction_evaluate=1.0,
+            min_fit_clients=2,
+            min_available_clients=2
+        )
+    else:
+        strategy = CustomFedAvg(
+            fraction_fit=1.0,
+            fraction_evaluate=1.0,
+            min_fit_clients=2,
+            min_available_clients=2
+        )
+
+    # Start Server (Blocking)
     fl.server.start_server(
         server_address="0.0.0.0:8080",
         config=fl.server.ServerConfig(num_rounds=5),
-        strategy=strategy,
+        strategy=strategy
     )
-    print("🏁 Training Session Complete.")
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--project-id', type=int, default=1)
-    args = parser.parse_args()
-
-    print("⏳ FL Server is ready. Waiting for 'training' status...")
-
+    print("⏳ FL Server Manager Online (Polling Mode)...")
+    
     while True:
         try:
-            # Poll the API to check project status
-            # We assume Project 1 for now, but you can make this dynamic
-            res = requests.get(f"{API_BASE}/api/projects/{args.project_id}/model-code")
-            if res.status_code == 200:
-                # We need a status field. For now, let's implement a simple trigger endpoint
-                # OR: You can add a '/api/training/status' endpoint that returns "active" or "idle"
+            # 1. Check Status
+            res = requests.get(f"{API_BASE}/api/training/status", timeout=5)
+            data = res.json()
+            
+            if data.get("status") == "training":
+                session_id = data.get("session_id")
+                strategy_name = data.get("strategy", "FedAvg")
                 
-                # Check the status check endpoint (We will create this next)
-                status_res = requests.get(f"{API_BASE}/api/training/status")
-                data = status_res.json()
+                # 2. RUN TRAINING (This blocks until 5 rounds finish)
+                run_fl_session(session_id, strategy_name)
                 
-                if data.get("status") == "training":
-                    run_server(args.project_id)
-                    
-                    # After training, reset status to idle so we don't loop forever
-                    requests.post(f"{API_BASE}/api/training/mode", json={"mode": "idle"})
-                    
+                # 3. Mark Complete
+                requests.post(f"{API_BASE}/api/training/complete")
+                print("💤 Training finished. Returning to idle.")
+                
+            time.sleep(POLL_INTERVAL)
+            
         except Exception as e:
-            print(f"⚠️ Polling error: {e}")
-        
-        time.sleep(5) # Check every 5 seconds
+            print(f"⚠️ Polling Error: {e}")
+            time.sleep(5)
 
 if __name__ == "__main__":
     main()
+    
+# this file is the main entry point for the FL server. It continuously polls the backend for training sessions, dynamically selects the strategy, and reports metrics and models back to the backend.

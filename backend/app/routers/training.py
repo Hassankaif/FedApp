@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
 from app.database import get_db_conn
 from app.socket_manager import manager
-from app.models.schemas import TrainingMode
+from app.models.schemas import TrainingMode, VoteRequest
 from datetime import datetime
 import pandas as pd
 import tensorflow as tf
@@ -19,70 +19,113 @@ current_config = {
     "comparison_dataset": None
 }
 
-# --- BASIC TRAINING ENDPOINTS ---
 
-@router.post("/start")
-async def start_training(conn = Depends(get_db_conn)):
-    """Start a new training session"""
+
+@router.post("/vote")
+async def vote_strategy(vote: VoteRequest, conn = Depends(get_db_conn)):
+    """Clients (Electron) call this to cast their vote"""
+    if vote.strategy not in ["FedAvg", "FedProx"]:
+        raise HTTPException(status_code=400, detail="Invalid strategy")
+
+    async with conn.cursor() as cursor:
+        # Insert or Update vote (One vote per client per project)
+        await cursor.execute(
+            """INSERT INTO strategy_votes (project_id, client_id, strategy) 
+               VALUES (%s, %s, %s) 
+               ON DUPLICATE KEY UPDATE strategy = %s""",
+            (vote.project_id, vote.client_id, vote.strategy, vote.strategy)
+        )
+        
+        # Get live tally to broadcast
+        await cursor.execute(
+            "SELECT strategy, COUNT(*) FROM strategy_votes WHERE project_id=%s GROUP BY strategy",
+            (vote.project_id,)
+        )
+        tally = {row[0]: row[1] for row in await cursor.fetchall()}
+
+    await manager.broadcast({"type": "vote_update", "tally": tally})
+    return {"status": "voted", "tally": tally}
+
+@router.get("/strategy/final/{project_id}")
+async def get_final_strategy(project_id: int, conn = Depends(get_db_conn)):
+    """FL Server calls this before starting to know which class to load"""
     async with conn.cursor() as cursor:
         await cursor.execute(
-            "INSERT INTO training_sessions (status, started_at) VALUES (%s, %s)",
-            ("running", datetime.utcnow())
+            """SELECT strategy, COUNT(*) as c 
+               FROM strategy_votes 
+               WHERE project_id = %s 
+               GROUP BY strategy 
+               ORDER BY c DESC LIMIT 1""",
+            (project_id,)
+        )
+        row = await cursor.fetchone()
+    
+    # Default to FedAvg if no votes
+    strategy = row[0] if row else "FedAvg"
+    return {"strategy": strategy}
+
+# --- 2. Server Control Endpoints ---
+
+@router.get("/status")
+async def get_status(conn = Depends(get_db_conn)):
+    """Polled by FL Server to know when to wake up"""
+    async with conn.cursor() as cursor:
+        await cursor.execute(
+            "SELECT status, id, final_strategy FROM training_sessions ORDER BY id DESC LIMIT 1"
+        )
+        row = await cursor.fetchone()
+    
+    if not row:
+        return {"status": "idle"}
+    
+    return {
+        "status": row[0], 
+        "session_id": row[1],
+        "strategy": row[2] 
+    }
+
+@router.post("/start")
+async def start_training(project_id: int = 1, conn = Depends(get_db_conn)):
+    """Frontend 'Start' button triggers this"""
+    
+    # 1. Determine Winner Strategy
+    final_res = await get_final_strategy(project_id, conn)
+    winner_strategy = final_res["strategy"]
+
+    async with conn.cursor() as cursor:
+        # Cancel old running sessions
+        await cursor.execute("UPDATE training_sessions SET status='cancelled' WHERE status='training'")
+        
+        # Create new session with the winning strategy
+        await cursor.execute(
+            """INSERT INTO training_sessions (status, started_at, final_strategy) 
+               VALUES ('training', %s, %s)""",
+            (datetime.utcnow(), winner_strategy)
         )
         session_id = cursor.lastrowid
-    
+
+    # Notify everyone
     await manager.broadcast({
         "type": "training_started",
         "session_id": session_id,
-        "timestamp": datetime.utcnow().isoformat()
+        "strategy": winner_strategy
     })
-    return {"status": "started", "session_id": session_id}
+    
+    return {"status": "training", "strategy": winner_strategy, "session_id": session_id}
 
 @router.post("/complete")
 async def complete_training(conn = Depends(get_db_conn)):
-    """Mark training as complete"""
+    """FL Server calls this when 5 rounds are done"""
     async with conn.cursor() as cursor:
         await cursor.execute(
-            "UPDATE training_sessions SET status = %s, completed_at = %s WHERE status = %s",
-            ("completed", datetime.utcnow(), "running")
+            "UPDATE training_sessions SET status='completed', completed_at=%s WHERE status='training'",
+            (datetime.utcnow(),)
         )
     
-    await manager.broadcast({
-        "type": "training_completed",
-        "timestamp": datetime.utcnow().isoformat()
-    })
+    await manager.broadcast({"type": "training_completed"})
     return {"status": "completed"}
 
-@router.get("/status")
-async def get_training_status(conn = Depends(get_db_conn)):
-    """Get current training session status"""
-    async with conn.cursor() as cursor:
-        await cursor.execute(
-            """SELECT id, status, started_at, total_rounds 
-               FROM training_sessions 
-               WHERE status = 'running' 
-               ORDER BY id DESC LIMIT 1"""
-        )
-        running_session = await cursor.fetchone()
-        
-        if running_session:
-            session_id, status, started_at, total_rounds = running_session
-            await cursor.execute(
-                "SELECT MAX(round) as current_round FROM metrics WHERE session_id = %s",
-                (session_id,)
-            )
-            round_row = await cursor.fetchone()
-            current_round = round_row[0] if round_row and round_row[0] else 0
-            
-            return {
-                "is_training": True,
-                "session_id": session_id,
-                "current_round": current_round,
-                "total_rounds": total_rounds,
-                "started_at": started_at
-            }
-        else:
-            return {"is_training": False, "session_id": None, "current_round": 0, "total_rounds": 20}
+
 
 # --- MODE SWITCHING ---
 

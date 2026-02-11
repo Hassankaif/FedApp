@@ -39,6 +39,11 @@ class ClientRegistration(BaseModel):
     client_id: str
     total_samples: int
 
+class VoteRequest(BaseModel):
+    project_id: int
+    client_id: str
+    strategy: str  # "FedAvg" or "FedProx"
+
 class TrainingMode(BaseModel):
     mode: str 
     dataset_file: Optional[str] = None

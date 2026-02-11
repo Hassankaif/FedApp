@@ -20,3 +20,5 @@ class ConnectionManager:
                 pass
 
 manager = ConnectionManager()
+
+# creates a ConnectionManager class that manages WebSocket connections. It allows clients to connect, disconnect, and broadcast messages to all connected clients. The manager instance is used in the main.py application to handle WebSocket communication.

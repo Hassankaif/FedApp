@@ -24,6 +24,9 @@ services:
         - "8080:8080"
       environment:
         - PROJECT_ID=1
+        - API_BASE=http://backend:8000  # Point to backend service
+      depends_on:
+        - backend
       networks:
         - fed_net
 #===============================================================================================

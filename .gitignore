@@ -1,14 +1,11 @@
 # Ignore node_modules in backend and frontend
-backend/node_modules/
 backend/.env
 backend/models/
 backend/datasets/
-backend/__pycache__/
 backend/app/__pycache__/
 backend/app/routers/__pycache__/
 backend/app/models/__pycache__/
 backend/app/services/__pycache__/
-backend/app/controllers/__pycache__/
 
 
 frontend/node_modules/

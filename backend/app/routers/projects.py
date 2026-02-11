@@ -3,6 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.models.project import ProjectCreate
 from app.services.model_loader import DynamicModelLoader
 from app.database import get_db_conn
+from app.routers.auth import get_current_user # 🔒 Import auth dependency to get current user info
 import json
 
 router = APIRouter(prefix="/api/projects", tags=["projects"])
@@ -115,17 +116,34 @@ async def get_model_code(project_id: int, conn = Depends(get_db_conn)):
         "target_column": row[3]
     }
 
+
 @router.get("/")
-async def list_projects(owner_id: int, conn = Depends(get_db_conn)):
-    """List all projects for a user"""
+async def list_projects(
+    owner_id: int = None, # Make this optional
+    conn = Depends(get_db_conn),
+    current_user: dict = Depends(get_current_user) # 🔒 Get user from Token
+):
+    """List projects: Admins see all, Researchers see their own"""
+    
     async with conn.cursor() as cursor:
-        await cursor.execute("""
-            SELECT id, name, description, status, current_round, 
-                   num_rounds, total_clients, created_at
-            FROM projects 
-            WHERE owner_id = %s 
-            ORDER BY created_at DESC
-        """, (owner_id,))
+        if current_user['role'] == 'admin':
+            # Admin sees ALL projects
+            await cursor.execute("""
+                SELECT id, name, description, status, current_round, 
+                       num_rounds, total_clients, created_at
+                FROM projects 
+                ORDER BY created_at DESC
+            """)
+        else:
+            # Researchers only see THEIR projects
+            await cursor.execute("""
+                SELECT id, name, description, status, current_round, 
+                       num_rounds, total_clients, created_at
+                FROM projects 
+                WHERE owner_id = %s 
+                ORDER BY created_at DESC
+            """, (current_user['id'],))
+            
         rows = await cursor.fetchall()
     
     projects = []
@@ -142,3 +160,6 @@ async def list_projects(owner_id: int, conn = Depends(get_db_conn)):
         })
     
     return {"projects": projects}
+
+# this file contains the main endpoints for creating, listing and retrieving FL projects and handles model code distribution to clients.
+# in future iterations, we can add endpoints for updating project status, managing clients, and aggregating model updates.

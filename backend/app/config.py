@@ -18,3 +18,5 @@ class Config:
     }
 
 settings = Config()
+
+#DB_CONFIG: This dictionary packages all your database connection details into one neat bundle that database.py will use later.

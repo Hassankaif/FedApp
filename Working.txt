@@ -1,0 +1,41 @@
+Backend:
+    App:/
+        __init__.py - In Python, a folder is just a folder... until you put an __init__.py file inside it. Makes it Importable (The Package Marker). The presence of __init__.py tells Python: "Treat this directory as a Package containing modules."
+        config.py - DB_CONFIG: This dictionary packages all your database connection details into one neat bundle that database.py will use later.
+        database.py - initializes the database connection pool and creates tables if they don't exist. The get_db_conn function provides a way for your API endpoints to access the database connection pool.
+        main.py - starts the FastAPI application with the defined routes and WebSocket endpoint. The lifespan function is used to manage the database connection pool, ensuring that it is properly initialized when the application starts and closed when it shuts down. The CORS middleware is configured to allow requests from specific origins, which is crucial for security in a production environment. 
+        socket_manager.py - creates a ConnectionManager class that manages WebSocket connections. It allows clients to connect, disconnect, and broadcast messages to all connected clients. The manager instance is used in the main.py application to handle WebSocket communication
+
+        models:/ 
+            projects.py - ProjectBase: Defines the essential fields every project needs. notice model_code is a string here—the researcher actually pastes Python code as text,  ProjectCreate: This is the specific contract for creating a new project. It adds owner_id because a project must belong to someone.
+            schemas.py -  This file holds generic data shapes used elsewhere, like: UserCreate: Defines how a signup request looks (email, password), Token: Defines what the login response looks like (access_token).
+
+        routers:/ (API ENDPOINTS)
+            auth.py: Handles login/signup (/login, /token).
+            metrics.py: Handles fetching training graphs and logs.
+            training.py: Handles starting/stopping global training rounds.
+            clients.py - This handles the HTTP requests from clients who are "checking in." A Hospital Client runs a script -> Hits this HTTP endpoint -> The Database updates -> The WebSocket Manager tells your React Dashboard "Hey, a new node just appeared!".
+            projects.py - this file contains the main endpoints for creating, listing , retrieving FL projects and handles model code distribution to clients.
+
+        services:/
+            model_loader.py - This acts as a safety inspector for the Python code researchers upload.Role: It reads the text of the code before running it to ensure it's safe and follows the rules.
+
+        Routers: "I received a POST request. Let me ask the Service to check the data, and then I'll send back a JSON response."
+        Service: "I check data to detect malicious code. I don't care where it came from.
+        models : In FastAPI, before you process any data, you define its "shape" using Pydantic. This ensures that if a user sends garbage data, the API rejects it automatically.
+
+    datasets:/ contains sample csv files for comparison task (research thesis)
+    models:/ containes global models trained during development/testing
+    .env - environment variables of Backend
+    dockerfile - backend container 
+    requirements.txt - libraries and modules required for backend code.
+
+
+
+fl-server:/
+    dynamic-server.py - this file is the main entry point for the FL server. It continuously polls the backend for training sessions, dynamically selects the strategy, and reports metrics and models back to the backend.
+    dockerfile - fl-server container
+
+
+frontend:
+

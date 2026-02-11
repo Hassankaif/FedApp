@@ -6,6 +6,7 @@ import json
 
 router = APIRouter(tags=["metrics"])
 
+# This router handles receiving metrics from the FL server and providing endpoints for the frontend to fetch metrics data.
 @router.post("/api/training/metrics")
 async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
     """Receive metrics from FL server and broadcast to frontend"""
@@ -58,9 +59,10 @@ async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
 
     return {"status": "received"}
 
-
+# this endpoint can be used for historical metrics or for a specific session
 @router.get("/api/metrics")
 async def get_metrics(session_id: int = None, conn = Depends(get_db_conn)):
+    # this endpoint can be used for historical metrics or for a specific session
     """Get training metrics"""
     async with conn.cursor() as cursor:
         if session_id:
@@ -89,7 +91,7 @@ async def get_metrics(session_id: int = None, conn = Depends(get_db_conn)):
         ]
     }
 
-
+# Endpoint to get latest metrics for the most recent session
 @router.get("/api/metrics/latest")
 async def get_latest_metrics(conn = Depends(get_db_conn)):
     """Get metrics for the latest session"""

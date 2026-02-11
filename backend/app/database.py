@@ -52,18 +52,27 @@ async def init_db(pool):
                 )
             ''')
             
-            # 3. Training Sessions
+            # 3. Training Sessions (MERGED & FIXED)
+            # Contains both project_id linkage AND the new final_strategy column
             await cursor.execute('''
                 CREATE TABLE IF NOT EXISTS training_sessions (
                     id INT AUTO_INCREMENT PRIMARY KEY,
                     project_id INT,
-                    status VARCHAR(50) NOT NULL,
+                    status VARCHAR(50) DEFAULT 'idle',
                     started_at TIMESTAMP NULL,
                     completed_at TIMESTAMP NULL,
                     total_rounds INT DEFAULT 20,
+                    final_strategy VARCHAR(50) DEFAULT 'FedAvg',
                     FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
                 )
             ''')
+            # # --- MIGRATION HELP (Optional but recommended) ---
+            # # If you already have a table without 'final_strategy', this adds it safely.
+            # try:
+            #     await cursor.execute("ALTER TABLE training_sessions ADD COLUMN final_strategy VARCHAR(50) DEFAULT 'FedAvg'")
+            # except Exception:
+            #     pass # Column likely already exists
+            
             
             # 4. Clients
             await cursor.execute('''
@@ -124,12 +133,26 @@ async def init_db(pool):
                     is_active BOOLEAN DEFAULT TRUE
                 )
             ''')
+
+            # 8. Strategy Votes (New Table for Voting)
+            await cursor.execute("""
+                CREATE TABLE IF NOT EXISTS strategy_votes (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    project_id INT NOT NULL,
+                    client_id VARCHAR(255) NOT NULL,
+                    strategy VARCHAR(50) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE KEY unique_vote (project_id, client_id)
+                );
+            """)
             
-            # Insert default admin (FIXED: Uses email & hashed_password)
+            # Insert default admin
             await cursor.execute('''
                 INSERT IGNORE INTO users (email, hashed_password, full_name, role) 
                 VALUES (%s, %s, %s, %s)
             ''', ('admin@fedapp.me', '$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY5GyYqNe.xvWy2', 'Super Admin', 'admin'))
+            
+            print("✓ Database schema initialized successfully")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):

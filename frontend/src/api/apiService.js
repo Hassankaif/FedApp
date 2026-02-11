@@ -1,68 +1,62 @@
-// frontend/src/api/apiService.js
 import axios from "axios";
 
-// 🚀 PRODUCTION SERVER IP (DigitalOcean)
-// const API_BASE_URL = import.meta.env.VITE_API_URL;
-const API_BASE_URL = "http://139.59.87.244:8000"; // Hardcoded for now, can switch to env variable later
+// 🚀 SMART URL DETECTION
+// If the browser is on "localhost", point to Local Backend (127.0.0.1:8000)
+// Otherwise (on DigitalOcean), point to the Production Server IP
+const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+
+const API_BASE_URL = isLocal 
+  ? "http://127.0.0.1:8000"       // Local Development
+  : "http://139.59.87.244:8000";  // Production Server
+
 const API_URL = `${API_BASE_URL}/api`;
-// const VITE_WS_URL= "ws://139.59.87.244:8000/ws"; // WebSocket URL
 
-
-// Create the Axios instance
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  headers: { "Content-Type": "application/json" },
 });
 
-// 1. REQUEST INTERCEPTOR (Attaches Token Automatically)
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// Request Interceptor (Adds Token)
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+}, (error) => Promise.reject(error));
 
-// 2. RESPONSE INTERCEPTOR (Handles Errors Globally)
+// Response Interceptor (Handles Errors)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // If 401 Unauthorized, clear token and redirect to login
     if (error.response && error.response.status === 401) {
-      // If token expires, kick user out
       localStorage.removeItem("token");
-      window.location.href = "/login";
+      if (!window.location.pathname.includes("/login")) {
+        window.location.href = "/login";
+      }
     }
     return Promise.reject(error);
   }
 );
 
 export const apiService = {
-  // ---------- Auth ----------
+  // --- Auth ---
   login: async (username, password) => {
     const res = await api.post("/auth/login", { username, password });
     return res.data;
   },
 
-  // 🚀 NEW: Registration Function
   register: async (userData) => {
-    // userData should contain: { email, password, full_name, role }
     const res = await api.post("/auth/register", userData);
     return res.data;
   },
 
-    // --- Projects (UPDATED) ---
+  // --- Projects ---
   createProject: async (data) => {
     const res = await api.post("/projects/", data);
     return res.data;
   },
 
   getProjects: async (ownerId = 1) => {
-    // Backend expects owner_id query param
     const res = await api.get(`/projects/?owner_id=${ownerId}`);
     return res.data.projects; 
   },
@@ -72,59 +66,32 @@ export const apiService = {
     return res.data.project;
   },
 
-  // ---------- Training ----------
+  // --- Training ---
   startTraining: async () => {
     const res = await api.post("/training/start");
     return res.data;
   },
-
+  
   getStatus: async () => {
     const res = await api.get("/training/status");
     return res.data;
   },
-
+  
   setTrainingMode: async (mode) => {
     const res = await api.post("/training/mode", { mode });
     return res.data;
   },
-
-  getComparison: async () => {
-    const res = await api.get("/training/comparison");
-    return res.data;
-  },
-
-  runCentralized: async (file) => {
-    const formData = new FormData();
-    formData.append("dataset_file", file);
-
-    const res = await api.post("/training/centralized", formData, {
-      headers: { "Content-Type": undefined }, // Axios handles FormData headers
-    });
-    return res.data;
-  },
-
-  // ---------- Data & Models ----------
+  
+  // --- Data & Models ---
   getMetrics: async () => {
     const res = await api.get("/metrics/latest");
     return res.data;
   },
-
-  getSavedModels: async () => {
-    const res = await api.get("/models/list");
-    return res.data;
-  },
-
-  getDatasets: async () => {
-    const res = await api.get("/datasets/list");
-    return res.data;
-  },
-
-  // ---------- Clients ----------
+  
   getClients: async () => {
     const res = await api.get("/clients/");
     return res.data;
-  },
+  }
 };
 
-export default apiService;
-
+export default api;

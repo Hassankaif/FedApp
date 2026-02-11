@@ -3,7 +3,7 @@ FROM python:3.9-slim
 WORKDIR /app
 
 # Install dependencies
-RUN pip install flwr requests
+RUN pip install flwr requests numpy
 
 # Copy server code
 COPY dynamic_server.py .

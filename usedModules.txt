@@ -1,0 +1,19 @@
+Backend:
+    aiomysql.create_pool: Instead of opening a new connection for every single user (which is slow), you create a "pool" of open connections that the app can borrow and return. This is much faster.
+
+
+    DynamicModelLoader (in fulture use allm to validate model code send by user): You call a service (which we will look at later) to scan the code. It likely checks for malicious imports (like os.system) to prevent hackers from destroying your server.
+
+
+
+
+
+
+API ENDPOINTS:
+
+api/projects/{project_id}/model-code     - specific endpoint designed for the Hospital Nodes (Clients). When a client connects, it calls this URL to download: model_code (python ml code) and csv_schema (This ensures the hospital's local data matches what the researcher expects.)
+
+
+CERTAIN FILES: 
+COMPARISON FEATURE: backend/app/routers/training.py - the function run_centralized_training() accepts a file upload (dataset_file). It saves this file to datasets/ and trains a standard TensorFlow model on it locally on the server.
+
