@@ -58,37 +58,39 @@ async def create_project(project: ProjectCreate, conn = Depends(get_db_conn)):
         "message": f"Project '{project.name}' created with ID {project_id}"
     }
 
+# projects.py
 @router.get("/{project_id}")
 async def get_project(project_id: int, conn = Depends(get_db_conn)):
-    """Get project details"""
     async with conn.cursor() as cursor:
-        await cursor.execute("SELECT * FROM projects WHERE id = %s", (project_id,))
+        # Explicitly list columns in the order expected by your Project model
+        await cursor.execute("""
+            SELECT id, name, description, model_code, csv_schema, 
+                   target_column, num_rounds, local_epochs, batch_size, min_clients, status
+            FROM projects WHERE id = %s
+        """, (project_id,))
         row = await cursor.fetchone()
     
     if not row:
         raise HTTPException(status_code=404, detail="Project not found")
     
-    # Map tuple to dict (aiomysql returns tuples)
+    # This mapping is now "column-change proof"
     return {
         "project": {
-            "id": row[0],
-            "name": row[1],
+            "id": row[0], 
+            "name": row[1], 
             "description": row[2],
-            "owner_id": row[3],
-            "model_code": row[4],
-            "csv_schema": json.loads(row[5]) if row[5] else [],
-            "expected_features": row[6],
-            "target_column": row[7],
-            "num_rounds": row[8],
-            "local_epochs": row[9],
-            "batch_size": row[10],
-            "min_clients": row[11],
-            "status": row[12],
-            "server_status": row[13],
-            "current_round": row[14],
-            "total_clients": row[15],
+            "model_code": row[3], 
+            "csv_schema": row[4], 
+            "target_column": row[5],
+            "num_rounds": row[6], 
+            "local_epochs": row[7], 
+            "batch_size": row[8],
+            "min_clients": row[9], 
+            "status": row[10]
         }
     }
+    
+    
 
 @router.get("/{project_id}/model-code")
 async def get_model_code(project_id: int, conn = Depends(get_db_conn)):

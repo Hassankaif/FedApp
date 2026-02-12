@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from app.database import get_db_conn
-from app.models.schemas import ModelConfig
-# Import shared state from training router or a common state file
-from app.routers.training import current_config 
+from app.models.schemas import ModelConfig 
+from app.routers.training import current_config # Import shared state from training router or a common state file
 import os
 import pickle
 import pandas as pd
@@ -15,16 +14,19 @@ router = APIRouter(tags=["models"])
 os.makedirs("models", exist_ok=True)
 os.makedirs("datasets", exist_ok=True)
 
+# this endpoint is called by the server after each round of federated training to save the global model weights. The model data is expected to be a dictionary containing the weights and any other relevant information. The model is saved as a pickle file with a timestamp in the filename for easy retrieval later.
 @router.post("/api/model/save")
-async def save_global_model(model_data: dict):
-    """Save global model weights"""
+async def save_global_model(file: UploadFile = File(...)):
+    """Save global model weights as a pickle file"""
     timestamp = int(datetime.utcnow().timestamp())
     model_path = f"models/global_model_{timestamp}.pkl"
-    
-    with open(model_path, 'wb') as f:
-        pickle.dump(model_data['weights'], f)
-    
+    # Save the uploaded file to the models directory
+    with open(model_path, "wb") as f:
+        f.write(await file.read())
+
     return {"status": "success", "model_path": model_path, "timestamp": timestamp}
+
+
 
 @router.get("/api/model/download/global")
 async def download_global_model():
@@ -48,6 +50,8 @@ async def download_centralized_model():
     model_path = os.path.join("models", latest_model)
     return FileResponse(model_path, media_type="application/octet-stream", filename=latest_model)
 
+
+
 @router.get("/api/models/list")
 async def list_saved_models():
     """List all saved models"""
@@ -61,6 +65,8 @@ async def list_saved_models():
             "type": "global" if "global" in filename else "centralized"
         })
     return {"models": sorted(models, key=lambda x: x['created'], reverse=True)}
+
+
 
 @router.post("/api/config/model")
 async def save_model_config(config: ModelConfig, conn = Depends(get_db_conn)):
@@ -77,6 +83,8 @@ async def save_model_config(config: ModelConfig, conn = Depends(get_db_conn)):
     current_config["dataset_path"] = config.dataset_path
     
     return {"status": "success", "message": "Model configuration saved"}
+
+
 
 @router.get("/api/config/model")
 async def get_model_config(conn = Depends(get_db_conn)):
@@ -95,10 +103,16 @@ async def get_model_config(conn = Depends(get_db_conn)):
         "dataset_path": "default.csv"
     }
 
+
+
+
+    
 @router.post("/api/config/dataset")
 async def upload_dataset(file: UploadFile = File(...)):
     """Upload new dataset"""
-    dataset_path = f"datasets/{file.filename}"
+    # FIX: basename removes directory paths, preventing traversal
+    safe_filename = os.path.basename(file.filename)
+    dataset_path = os.path.join("datasets", safe_filename)
     with open(dataset_path, "wb") as f:
         f.write(await file.read())
     
@@ -114,6 +128,8 @@ async def upload_dataset(file: UploadFile = File(...)):
     except Exception as e:
         os.remove(dataset_path)
         raise HTTPException(status_code=400, detail=f"Invalid dataset: {str(e)}")
+
+
 
 @router.get("/api/datasets/list")
 async def list_datasets():
@@ -131,6 +147,8 @@ async def list_datasets():
         except:
             pass
     return {"datasets": sorted(datasets, key=lambda x: x['created'], reverse=True)}
+
+
 
 @router.get("/api/config/current")
 async def get_current_config():

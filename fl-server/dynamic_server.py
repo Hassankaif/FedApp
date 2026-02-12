@@ -41,10 +41,8 @@ class ReportingMixin:
     def save_and_upload_model(self, parameters):
         if not parameters: 
             return
-        
         timestamp = int(time.time())
         filename = f"global_model_{timestamp}.pkl"
-        
         # Save locally
         with open(filename, "wb") as f:
             pickle.dump(parameters, f)

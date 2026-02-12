@@ -37,5 +37,7 @@ fl-server:/
     dockerfile - fl-server container
 
 
-frontend:
+frontend:/
+    src:/
+        api/apiservice.js -
 

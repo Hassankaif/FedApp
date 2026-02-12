@@ -7,57 +7,50 @@ import json
 router = APIRouter(tags=["metrics"])
 
 # This router handles receiving metrics from the FL server and providing endpoints for the frontend to fetch metrics data.
+# metrics.py
 @router.post("/api/training/metrics")
 async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
-    """Receive metrics from FL server and broadcast to frontend"""
     async with conn.cursor() as cursor:
-        # Get current session
-        await cursor.execute(
-            "SELECT id FROM training_sessions WHERE status = 'running' ORDER BY id DESC LIMIT 1"
-        )
+        # We fetch the latest session and join with projects to get num_rounds
+        # based on your database.py schema for 'training_sessions' and 'projects'
+        await cursor.execute("""
+            SELECT ts.id, p.num_rounds 
+            FROM training_sessions ts
+            JOIN projects p ON ts.owner_id = p.owner_id 
+            WHERE ts.status = 'running' 
+            ORDER BY ts.id DESC LIMIT 1
+        """)
         row = await cursor.fetchone()
-        session_id = row[0] if row else None
-
-        if not session_id:
+        
+        if not row:
             raise HTTPException(status_code=404, detail="No active training session found")
+        
+        session_id, total_rounds = row[0], row[1]
 
-        # Store metrics
+        # Insertion logic using exactly your MetricsReport model
         await cursor.execute(
             """INSERT INTO metrics 
                (session_id, round, num_clients, accuracy, loss, client_metrics, timestamp)
                VALUES (%s, %s, %s, %s, %s, %s, %s)""",
             (
-                session_id,
-                metrics.round,
-                metrics.num_clients,
-                metrics.accuracy,
-                metrics.loss,
-                json.dumps(metrics.client_metrics),
-                metrics.timestamp,
-            ),
+                session_id, metrics.round, metrics.num_clients,
+                metrics.accuracy, metrics.loss, 
+                json.dumps(metrics.client_metrics), metrics.timestamp
+            )
         )
 
-        # Optional: update training session status if last round reached
-        if metrics.round >= 5:  # adjust threshold dynamically later
+        # FIX: Use the 'num_rounds' from the database instead of hardcoded '5'
+        if metrics.round >= total_rounds:
             await cursor.execute(
                 "UPDATE training_sessions SET status = 'completed' WHERE id = %s",
-                (session_id,),
+                (session_id,)
             )
-
-    # Broadcast to WebSocket clients 🚀
-    message = {
-        "type": "metrics_update",
-        "data": {
-            "round": metrics.round,
-            "accuracy": metrics.accuracy,
-            "loss": metrics.loss,
-            "num_clients": metrics.num_clients,
-            "timestamp": metrics.timestamp,
-        },
-    }
-    await manager.broadcast(json.dumps(message))
-
+    
+    # WebSocket broadcast remains the same
+    await manager.broadcast(json.dumps({"type": "metrics_update", "data": metrics.dict()}))
     return {"status": "received"}
+
+
 
 # this endpoint can be used for historical metrics or for a specific session
 @router.get("/api/metrics")
