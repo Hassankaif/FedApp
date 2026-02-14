@@ -11,9 +11,9 @@ export const useProjects = (token) => {
     if (!token) return;
     setLoading(true);
     try {
-      // Defaulting to owner_id=1 (Admin)
-      const data = await apiService.getProjects(1);
-      setProjects(data);
+      // Use namespaced API call
+      const data = await apiService.projects.list();
+      setProjects(data.projects || []); // Handle { projects: [...] } response format
       setError(null);
     } catch (err) {
       console.error("Failed to fetch projects:", err);
@@ -25,12 +25,15 @@ export const useProjects = (token) => {
 
   const createNewProject = async (projectData) => {
     try {
-      await apiService.createProject({
+      // Ensure csv_schema is a string as expected by ProjectCreate schema
+      const payload = {
         ...projectData,
-        owner_id: 1, // Hardcoded to Admin
-        csv_schema: projectData.csv_schema.split(",").map(s => s.trim()) // Convert string to list
-      });
-      await fetchProjects(); // Refresh list
+        csv_schema: Array.isArray(projectData.csv_schema) 
+          ? projectData.csv_schema.join(",") 
+          : projectData.csv_schema
+      };
+      await apiService.projects.create(payload);
+      await fetchProjects(); // Refresh list immediately
       return { success: true };
     } catch (err) {
       return { success: false, error: err.response?.data?.detail || "Failed to create" };

@@ -85,9 +85,8 @@ async def get_status(conn = Depends(get_db_conn)):
     }
 
 @router.post("/start")
-async def start_training(project_id: int = 1, conn = Depends(get_db_conn)):
+async def start_training(project_id: int = 1, conn = Depends(get_db_conn)): #project_id is hardcoded for now, we can extend the API later to specify which project to start training on
     """Frontend 'Start' button triggers this"""
-    
     # 1. Determine Winner Strategy
     final_res = await get_final_strategy(project_id, conn)
     winner_strategy = final_res["strategy"]

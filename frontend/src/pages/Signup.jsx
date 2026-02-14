@@ -9,7 +9,7 @@ const Signup = () => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'client' // Default role
+    role: 'hospital' // Default role
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -31,7 +31,7 @@ const Signup = () => {
 
     try {
       // Register the user
-      await apiService.register({
+      await apiService.auth.register({
         email: formData.email,
         password: formData.password,
         full_name: formData.full_name,

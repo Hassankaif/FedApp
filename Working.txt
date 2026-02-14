@@ -1,9 +1,9 @@
 Backend:
     App:/
-        __init__.py - In Python, a folder is just a folder... until you put an __init__.py file inside it. Makes it Importable (The Package Marker). The presence of __init__.py tells Python: "Treat this directory as a Package containing modules."
-        config.py - DB_CONFIG: This dictionary packages all your database connection details into one neat bundle that database.py will use later.
-        database.py - initializes the database connection pool and creates tables if they don't exist. The get_db_conn function provides a way for your API endpoints to access the database connection pool.
-        main.py - starts the FastAPI application with the defined routes and WebSocket endpoint. The lifespan function is used to manage the database connection pool, ensuring that it is properly initialized when the application starts and closed when it shuts down. The CORS middleware is configured to allow requests from specific origins, which is crucial for security in a production environment. 
+        __init__.py -       In Python, a folder is just a folder... until you put an __init__.py file inside it. Makes it Importable (The Package Marker). The presence of __init__.py tells Python: "Treat this directory as a Package containing modules."
+        config.py -         DB_CONFIG: This dictionary packages all your database connection details into one neat bundle that database.py will use later.
+        database.py -       initializes the database connection pool and creates tables if they don't exist. The get_db_conn function provides a way for your API endpoints to access the database connection pool.
+        main.py -           starts the FastAPI application with the defined routes and WebSocket endpoint. The lifespan function is used to manage the database connection pool, ensuring that it is properly initialized when the application starts and closed when it shuts down. The CORS middleware is configured to allow requests from specific origins, which is crucial for security in a production environment. 
         socket_manager.py - creates a ConnectionManager class that manages WebSocket connections. It allows clients to connect, disconnect, and broadcast messages to all connected clients. The manager instance is used in the main.py application to handle WebSocket communication
 
         models:/ 
@@ -11,11 +11,11 @@ Backend:
             schemas.py -  This file holds generic data shapes used elsewhere, like: UserCreate: Defines how a signup request looks (email, password), Token: Defines what the login response looks like (access_token).
 
         routers:/ (API ENDPOINTS)
-            auth.py: Handles login/signup (/login, /token).
-            metrics.py: Handles fetching training graphs and logs.
+            auth.py:     Handles login/signup (/login, /token).
+            metrics.py:  Handles fetching training graphs and logs.
             training.py: Handles starting/stopping global training rounds.
             clients.py - This handles the HTTP requests from clients who are "checking in." A Hospital Client runs a script -> Hits this HTTP endpoint -> The Database updates -> The WebSocket Manager tells your React Dashboard "Hey, a new node just appeared!".
-            projects.py - this file contains the main endpoints for creating, listing , retrieving FL projects and handles model code distribution to clients.
+            projects.py -This file contains the main endpoints for creating, listing , retrieving FL projects and handles model code distribution to clients.
 
         services:/
             model_loader.py - This acts as a safety inspector for the Python code researchers upload.Role: It reads the text of the code before running it to ensure it's safe and follows the rules.
@@ -35,9 +35,38 @@ Backend:
 fl-server:/
     dynamic-server.py - this file is the main entry point for the FL server. It continuously polls the backend for training sessions, dynamically selects the strategy, and reports metrics and models back to the backend.
     dockerfile - fl-server container
+    .env - docker backend service url
 
 
 frontend:/
     src:/
-        api/apiservice.js -
+        api/:
+            apiservice.js - The Communication Layer: How to securely talk to REST APIs.it adds access_token to local storage using inceptors(). [uses Axios interceptors auto-attach JWT to requests and globally handle 401 errors by clearing token and redirecting to login]
+        hooks/:
+            useTraining.js - The Real-Time Engine : How to handle live WebSocket data streams. This custom hook encapsulates all logic related to training, including fetching data, managing WebSocket connections, and providing functions to start training and run centralized experiments. It can be imported and used in React components to easily access training-related functionality and state.(// useTraining hook: maintains stable WebSocket connection, parses incoming JSON, updates metrics immutably, and resets charts on new training sessions)
+            useProjects.js - Custom React hook: memoizes fetch function, auto-runs on mount, and cleanly exposes UI-ready state
+        pages/:
+            Dashboard.js - tracks active tab state and conditionally renders panels with logical AND for instant view switching
+            Login.jsx - It allows you to validate input while the user types (e.g., checking if a password is long enough) before they even click "Login."
+            Signup.jsx - This file handles user creation. It follows a similar pattern to Login but introduces client-side validation for password.
+            Home.jsx - IN FUTURE
+        components:/
+            Charts.jsx - This component is "dumb"—it doesn't fetch metrics[] data; it just displays what it's given.
+            ClientList.jsx - This component displays the connected hospitals/clients. It demonstrates how to handle Empty States,
+            ComparisonPanel.jsx - (Research hypothesis) runs centralized baseline vs federated model, but uses manual fetch with FormData and token headers—bypassing apiService interceptors and global auth handling
+            ConfigPanel.jsx -  pure presentational component that maps props into UI, showing saved models or empty state, with no logic or API calls
+            ProjectsPanel.jsx - a complex component. It displays a list of projects and contains a form to create a new one.
+        App.jsx - entry point , Auth Guard: uses token check with ternary to protect routes, redirect unauthorized users to login, and render Dashboard with props for authenticated sessions
+        main.jsx - wraps app into root of the DOM
+        index.css - manages css part
+    Dockerfile - frontend services
+    tailwind/vite/postcss/nginx.conf/package.json - config files
+    readme.md 
+
+docker-compose.yml - 
+requirements.txt - 
+gitignore - 
+readme.md - 
+
+
 

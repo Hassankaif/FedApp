@@ -1,6 +1,7 @@
 import aiomysql
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
+from fastapi.requests import HTTPConnection 
 from app.config import settings
 
 async def init_db(pool):
@@ -157,18 +158,29 @@ async def init_db(pool):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
+        # settings.DB_CONFIG now works because of the property in config.py
         app.state.pool = await aiomysql.create_pool(**settings.DB_CONFIG)
         await init_db(app.state.pool)
         print("✓ Database initialized and connected")
     except Exception as e:
         print(f"✗ Database connection failed: {e}")
+        # Re-raise so the app fails fast if DB is missing
+        raise e
     yield
     if hasattr(app.state, 'pool'):
         app.state.pool.close()
         await app.state.pool.wait_closed()
 
-async def get_db_conn(request: Request):
+#  Use HTTPConnection to support both Requests and WebSockets
+async def get_db_conn(request: HTTPConnection):
+    """
+    Dependency to get a DB connection from the pool.
+    Works for both HTTP routes and WebSocket endpoints.
+    """
     if not hasattr(request.app.state, 'pool'):
         raise HTTPException(status_code=500, detail="Database pool not initialized")
+    
     async with request.app.state.pool.acquire() as conn:
         yield conn
+        
+

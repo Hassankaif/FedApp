@@ -58,7 +58,7 @@ async def create_project(project: ProjectCreate, conn = Depends(get_db_conn)):
         "message": f"Project '{project.name}' created with ID {project_id}"
     }
 
-# projects.py
+#get project details for a specific project with project_id as a path parameter. This endpoint is used by the frontend when a user clicks on a project to view its details. It returns all relevant information about the project, including the model code and CSV schema for clients to download when they join the project.
 @router.get("/{project_id}")
 async def get_project(project_id: int, conn = Depends(get_db_conn)):
     async with conn.cursor() as cursor:
@@ -91,7 +91,7 @@ async def get_project(project_id: int, conn = Depends(get_db_conn)):
     }
     
     
-
+# this endpoint allows clients to download the model code and CSV schema for a specific project. It is a public endpoint that does not require authentication, as clients need to access it when they join a project. The endpoint retrieves the model code and CSV schema from the database based on the project ID and returns it in the response.
 @router.get("/{project_id}/model-code")
 async def get_model_code(project_id: int, conn = Depends(get_db_conn)):
     """Public endpoint for clients to download model"""

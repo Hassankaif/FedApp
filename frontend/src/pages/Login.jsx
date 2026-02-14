@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom'; // 👈 Import Link
+import { Link } from 'react-router-dom'; 
 
 const Login = ({ onLogin, error }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
-    await onLogin(username, password);
+    setLoading(true);     // onLogin in App.jsx should call apiService.auth.login(email, password)
+    await onLogin(email, password);
     setLoading(false);
   };
 
@@ -25,7 +25,7 @@ const Login = ({ onLogin, error }) => {
             <span className="text-3xl">🏥</span>
           </div>
           <h2 className="text-3xl font-bold text-white tracking-tight">Welcome Back</h2>
-          <p className="text-indigo-200 mt-2">Sign in to Federated Learning</p>
+          <p className="text-indigo-200 mt-2">Sign in to Federated Learning Platform</p>
         </div>
 
         {error && (
@@ -33,14 +33,14 @@ const Login = ({ onLogin, error }) => {
             ⚠️ {error}
           </div>
         )}
-
+        {/*  Login form  */}
         <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-indigo-200 mb-1 ml-1">Email Address</label>
             <input
-              type="text" // changed from email to text to allow 'admin' username if needed, but email is preferred
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              type="email" // changed from email to text to allow 'admin' username if needed, but email is preferred
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 bg-black/20 border border-indigo-500/30 rounded-xl text-white placeholder-indigo-300/50 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
               placeholder="admin@fedapp.me"
               required
@@ -70,7 +70,7 @@ const Login = ({ onLogin, error }) => {
           </button>
         </form>
         
-        {/* 🚀 TOGGLE LINK */}
+        {/* 🚀 TOGGLE LINK to signup page */}
         <div className="mt-6 text-center">
           <p className="text-sm text-indigo-200">
             Don't have an account?{' '}

@@ -5,10 +5,16 @@ import time
 import pickle
 import os
 from datetime import datetime
+from dotenv import load_dotenv
 
 # Config
-API_BASE = os.getenv("API_BASE", "http://localhost:8000")
+# API_BASE = os.getenv("API_BASE", "http://localhost:8000")
 POLL_INTERVAL = 3
+# Load environment variables from .env at project root
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+
+API_BASE = os.getenv("API_BASE", "http://localhost:8000")
+
 
 # --- 1. The Reporting Logic (Mixin) ---
 # We use a Mixin so we can attach this logic to EITHER strategy
