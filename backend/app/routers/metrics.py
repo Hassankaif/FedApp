@@ -17,7 +17,7 @@ async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
             SELECT ts.id, p.num_rounds 
             FROM training_sessions ts
             JOIN projects p ON ts.project_id = p.id 
-            WHERE ts.status = 'running' 
+            WHERE ts.status = 'training' 
             ORDER BY ts.id DESC LIMIT 1
         """) #Join on 'project_id' instead of 'owner_id
         row = await cursor.fetchone()
@@ -47,7 +47,7 @@ async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
             )
     
     # WebSocket broadcast remains the same
-    await manager.broadcast(json.dumps({"type": "metrics_update", "data": model.dump(metrics)}))
+    await manager.broadcast(json.dumps({"type": "metrics_update", "data": metrics.model_dump()}))
     return {"status": "received"}
 
 
