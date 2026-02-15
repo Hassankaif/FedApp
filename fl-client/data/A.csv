@@ -1,4 +1,4 @@
-age,bmi,glucose,target
+age,bmi,activity_level,target
 25,22.4,95,0
 32,27.8,110,1
 45,30.2,140,1
@@ -10,4 +10,4 @@ age,bmi,glucose,target
 47,32.0,150,1
 55,29.4,135,1
 60,33.1,170,1
-23,21.9,85,0        
+23,21.9,85,0      

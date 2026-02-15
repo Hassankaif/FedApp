@@ -97,9 +97,9 @@ async def start_training(project_id: int = 1, conn = Depends(get_db_conn)): #pro
         
         # Create new session with the winning strategy
         await cursor.execute(
-            """INSERT INTO training_sessions (status, started_at, final_strategy) 
-               VALUES ('training', %s, %s)""",
-            (datetime.utcnow(), winner_strategy)
+            """INSERT INTO training_sessions (project_id, status, started_at, final_strategy) 
+               VALUES (%s, 'training', %s, %s)""",
+            (project_id, datetime.utcnow(), winner_strategy)
         )
         session_id = cursor.lastrowid
 

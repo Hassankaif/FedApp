@@ -20,15 +20,36 @@ const Home = () => {
         </Link>
       </nav>
 
-      {/* 1. Hero Section: Image/GIF Placeholder (Top Half) */}
+      {/* 1. Hero Section: Image/GIF Placeholder (Top Half)
       <div className="w-full h-[50vh] bg-slate-200 flex items-center justify-center overflow-hidden border-b border-slate-300">
         <div className="text-slate-400 flex flex-col items-center">
           <span className="text-6xl mb-2">🌐</span>
           <p className="font-medium text-lg">Federated Learning Animation / Hero Image</p>
-          {/* Replace with <img src="your-gif-url.gif" className="w-full h-full object-cover" /> */}
+          {/* Replace with <img src="your-gif-url.gif" className="w-full h-full object-cover" />
         </div>
       </div>
+      */}
 
+      {/* 1. Hero Section */}
+<div className="w-full h-[50vh] bg-slate-200 flex items-center justify-center overflow-hidden border-b border-slate-300 relative">
+  <video 
+    autoPlay 
+    loop 
+    muted 
+    playsInline 
+    className="absolute w-full h-full object-cover opacity-90"
+    poster="/assets/hero-poster.jpg"
+  >
+    {/* <source src="/assets/hero-animation.webm" type="video/webm" /> */}
+    <source src="/AI_Video_Generation_Options_Provided.mp4" type="video/mp4" />
+  </video>
+
+  {/* Overlay content to ensure text readability if needed */}
+  {/* <div className="relative z-10 text-center bg-white/80 p-6 rounded-2xl backdrop-blur-sm shadow-lg">
+    <span className="text-6xl mb-2 block">🌐</span>
+    <h2 className="text-2xl font-bold text-indigo-900">Secure. Collaborative. Intelligent.</h2>
+  </div> */}
+</div>
       {/* 3. Instruction Section */}
       <main className="max-w-4xl mx-auto px-6 py-12">
         <div className="text-center mb-10">

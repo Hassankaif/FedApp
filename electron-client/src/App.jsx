@@ -1,18 +1,29 @@
-import React, { useState, useEffect } from 'react';
+// App.jsx 
 
-const containerStyle = { padding: '20px', fontFamily: 'sans-serif', maxWidth: '800px', margin: '0 auto' };
-const inputStyle = { display: 'block', width: '100%', padding: '10px', marginBottom: '10px' };
-const logStyle = { background: '#222', color: '#0f0', padding: '15px', height: '300px', overflowY: 'scroll', borderRadius: '5px', fontFamily: 'monospace' };
+import React, { useState, useEffect, useRef } from 'react';
+import './App.css'; // Assume basic CSS exists
 
 function App() {
-  const [projectId, setProjectId] = useState('');
-  const [clientId, setClientId] = useState('');
+  // Configuration State
+  const [config, setConfig] = useState({
+    apiUrl: 'http://localhost:8000',
+    flServerUrl: 'localhost:8080',
+    projectId: '1',
+    clientId: 'Hospital_A'
+  });
+  
   const [csvPath, setCsvPath] = useState('');
   const [logs, setLogs] = useState([]);
   const [isTraining, setIsTraining] = useState(false);
+  const logEndRef = useRef(null);
 
+  // Auto-scroll logs
   useEffect(() => {
-    // Listen for logs from Python
+    logEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [logs]);
+
+  // Listen for Electron logs
+  useEffect(() => {
     if (window.electron) {
       window.electron.onLog((msg) => {
         setLogs(prev => [...prev, msg]);
@@ -26,49 +37,97 @@ function App() {
   };
 
   const handleStart = async () => {
-    if (!projectId || !clientId || !csvPath) return alert("Please fill all fields!");
+    if (!csvPath) return alert("Please select a dataset first!");
+    
     setIsTraining(true);
     setLogs(["🚀 Initializing Client Engine..."]);
-    await window.electron.startTraining({ projectId, clientId, dataPath: csvPath });
+    
+    await window.electron.startTraining({ 
+      ...config, 
+      dataPath: csvPath 
+    });
   };
 
   const handleStop = async () => {
     await window.electron.stopTraining();
     setIsTraining(false);
-    setLogs(prev => [...prev, "🛑 Training Stopped."]);
+    setLogs(prev => [...prev, "🛑 Training Stopped by User."]);
   };
 
   return (
-    <div style={containerStyle}>
-      <h1>FedApp Client</h1>
-      
-      <div style={{ background: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '20px' }}>
-        <h3>1. Configuration</h3>
-        <input style={inputStyle} placeholder="Project ID (e.g., 1)" value={projectId} onChange={e => setProjectId(e.target.value)} />
-        <input style={inputStyle} placeholder="Client ID (e.g., hospital_a)" value={clientId} onChange={e => setClientId(e.target.value)} />
-        
-        <h3>2. Dataset</h3>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
-          <input style={{ ...inputStyle, marginBottom: 0 }} value={csvPath} readOnly placeholder="No file selected..." />
-          <button onClick={handleBrowse} style={{ padding: '10px 20px', cursor: 'pointer' }}>Browse</button>
+    <div className="container">
+      <header className="header">
+        <h1>🏥 Federated Client</h1>
+        <div className={`status-badge ${isTraining ? 'active' : ''}`}>
+          {isTraining ? 'Running' : 'Idle'}
         </div>
-      </div>
+      </header>
 
-      <div style={{ marginBottom: '20px' }}>
-        {!isTraining ? (
-          <button onClick={handleStart} style={{ padding: '15px 30px', background: '#007bff', color: 'white', border: 'none', borderRadius: '5px', fontSize: '16px', cursor: 'pointer' }}>
-            Start Training
-          </button>
-        ) : (
-          <button onClick={handleStop} style={{ padding: '15px 30px', background: '#dc3545', color: 'white', border: 'none', borderRadius: '5px', fontSize: '16px', cursor: 'pointer' }}>
-            Stop Training
-          </button>
-        )}
-      </div>
+      <div className="grid-layout">
+        {/* Left Panel: Configuration */}
+        <div className="card config-panel">
+          <h3>1. Connection Settings</h3>
+          <div className="input-group">
+            <label>API URL (FastAPI)</label>
+            <input 
+              value={config.apiUrl} 
+              onChange={e => setConfig({...config, apiUrl: e.target.value})} 
+            />
+          </div>
+          <div className="input-group">
+            <label>FL Server URL (Flower)</label>
+            <input 
+              value={config.flServerUrl} 
+              onChange={e => setConfig({...config, flServerUrl: e.target.value})} 
+            />
+          </div>
 
-      <h3>Live Logs</h3>
-      <div style={logStyle}>
-        {logs.map((l, i) => <div key={i}>{l}</div>)}
+          <h3>2. Identity</h3>
+          <div className="input-group">
+            <label>Client ID</label>
+            <input 
+              value={config.clientId} 
+              onChange={e => setConfig({...config, clientId: e.target.value})} 
+            />
+          </div>
+          <div className="input-group">
+            <label>Project ID to Join</label>
+            <input 
+              type="number"
+              value={config.projectId} 
+              onChange={e => setConfig({...config, projectId: e.target.value})} 
+            />
+          </div>
+
+          <h3>3. Data Source</h3>
+          <div className="file-picker">
+            <input value={csvPath || "No file selected"} readOnly />
+            <button onClick={handleBrowse}>Browse CSV</button>
+          </div>
+
+          <div className="actions">
+            {!isTraining ? (
+              <button className="btn-primary" onClick={handleStart}>
+                Start Training
+              </button>
+            ) : (
+              <button className="btn-danger" onClick={handleStop}>
+                Stop Training
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Right Panel: Logs */}
+        <div className="card log-panel">
+          <h3>📜 Execution Logs</h3>
+          <div className="log-window">
+            {logs.map((log, i) => (
+              <div key={i} className="log-line">{log}</div>
+            ))}
+            <div ref={logEndRef} />
+          </div>
+        </div>
       </div>
     </div>
   );

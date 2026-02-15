@@ -1,3 +1,4 @@
+from pyexpat import model
 from fastapi import APIRouter, Depends, HTTPException
 from app.database import get_db_conn
 from app.socket_manager import manager
@@ -12,14 +13,13 @@ router = APIRouter(tags=["metrics"])
 async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
     async with conn.cursor() as cursor:
         # We fetch the latest session and join with projects to get num_rounds
-        # based on your database.py schema for 'training_sessions' and 'projects'
         await cursor.execute("""
             SELECT ts.id, p.num_rounds 
             FROM training_sessions ts
-            JOIN projects p ON ts.owner_id = p.owner_id 
+            JOIN projects p ON ts.project_id = p.id 
             WHERE ts.status = 'running' 
             ORDER BY ts.id DESC LIMIT 1
-        """)
+        """) #Join on 'project_id' instead of 'owner_id
         row = await cursor.fetchone()
         
         if not row:
@@ -47,7 +47,7 @@ async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
             )
     
     # WebSocket broadcast remains the same
-    await manager.broadcast(json.dumps({"type": "metrics_update", "data": metrics.dict()}))
+    await manager.broadcast(json.dumps({"type": "metrics_update", "data": model.dump(metrics)}))
     return {"status": "received"}
 
 

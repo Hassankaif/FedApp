@@ -103,8 +103,8 @@ def run_fl_session(session_id, strategy_name):
         strategy = CustomFedAvg(
             fraction_fit=1.0,
             fraction_evaluate=1.0,
-            min_fit_clients=2,
-            min_available_clients=2
+            min_fit_clients=1,
+            min_available_clients=1
         )
 
     # Start Server (Blocking)
