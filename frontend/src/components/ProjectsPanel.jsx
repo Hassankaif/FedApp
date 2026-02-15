@@ -1,4 +1,4 @@
-// frontend/src/components/ProjectsPanel.jsx
+// frontend/src/components/ProjectsPanel.jsx - FIXED VERSION
 import React, { useState } from 'react';
 
 const ProjectsPanel = ({ projects = [], onCreateProject, loading }) => {
@@ -7,7 +7,6 @@ const ProjectsPanel = ({ projects = [], onCreateProject, loading }) => {
     name: '',
     description: '',
     target_column: 'Outcome',
-    // Default schema matches the Pima Indians Diabetes dataset often used in examples
     csv_schema: 'Pregnancies,Glucose,BloodPressure,SkinThickness,Insulin,BMI,DiabetesPedigreeFunction,Age,Outcome',
     model_code: '',
     num_rounds: 5,
@@ -29,14 +28,34 @@ const ProjectsPanel = ({ projects = [], onCreateProject, loading }) => {
     e.preventDefault();
     setError(null);
     
+    // 🔥 FIX #2: Calculate expected_features from csv_schema
+    const schemaArray = formData.csv_schema
+      .split(',')
+      .map(col => col.trim())
+      .filter(col => col.length > 0);
+    
+    // Remove target column from feature count
+    const expectedFeatures = schemaArray.filter(
+      col => col !== formData.target_column.trim()
+    ).length;
+    
+    // Validate that target column exists in schema
+    if (!schemaArray.includes(formData.target_column.trim())) {
+      setError(`Target column "${formData.target_column}" not found in CSV schema`);
+      return;
+    }
+
     // Ensure numeric fields are actually numbers
     const payload = {
       ...formData,
+      expected_features: expectedFeatures, // 🔥 NEW: Auto-calculated
       num_rounds: parseInt(formData.num_rounds),
       min_clients: parseInt(formData.min_clients),
       local_epochs: parseInt(formData.local_epochs),
       batch_size: parseInt(formData.batch_size),
     };
+
+    console.log('📤 Submitting project with payload:', payload);
 
     const result = await onCreateProject(payload);
     
@@ -86,22 +105,24 @@ const ProjectsPanel = ({ projects = [], onCreateProject, loading }) => {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Project Name</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Project Name *</label>
                 <input 
                   name="name"
                   className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none" 
                   value={formData.name}
                   onChange={handleChange}
+                  placeholder="e.g., Diabetes Prediction Study"
                   required
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Target Column</label>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Target Column *</label>
                 <input 
                   name="target_column"
                   className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none" 
                   value={formData.target_column}
                   onChange={handleChange}
+                  placeholder="e.g., Outcome"
                   required
                 />
               </div>
@@ -110,19 +131,19 @@ const ProjectsPanel = ({ projects = [], onCreateProject, loading }) => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                  <label className="block text-xs font-medium text-gray-500 mb-1">Rounds</label>
-                 <input type="number" name="num_rounds" value={formData.num_rounds} onChange={handleChange} className="w-full border p-2 rounded" />
+                 <input type="number" name="num_rounds" value={formData.num_rounds} onChange={handleChange} className="w-full border p-2 rounded" min="1" />
               </div>
               <div>
                  <label className="block text-xs font-medium text-gray-500 mb-1">Min Clients</label>
-                 <input type="number" name="min_clients" value={formData.min_clients} onChange={handleChange} className="w-full border p-2 rounded" />
+                 <input type="number" name="min_clients" value={formData.min_clients} onChange={handleChange} className="w-full border p-2 rounded" min="1" />
               </div>
               <div>
                  <label className="block text-xs font-medium text-gray-500 mb-1">Local Epochs</label>
-                 <input type="number" name="local_epochs" value={formData.local_epochs} onChange={handleChange} className="w-full border p-2 rounded" />
+                 <input type="number" name="local_epochs" value={formData.local_epochs} onChange={handleChange} className="w-full border p-2 rounded" min="1" />
               </div>
               <div>
                  <label className="block text-xs font-medium text-gray-500 mb-1">Batch Size</label>
-                 <input type="number" name="batch_size" value={formData.batch_size} onChange={handleChange} className="w-full border p-2 rounded" />
+                 <input type="number" name="batch_size" value={formData.batch_size} onChange={handleChange} className="w-full border p-2 rounded" min="1" />
               </div>
             </div>
 
@@ -134,20 +155,45 @@ const ProjectsPanel = ({ projects = [], onCreateProject, loading }) => {
                 rows="2"
                 value={formData.description}
                 onChange={handleChange}
+                placeholder="Brief description of this federated learning project..."
               />
             </div>
 
+            {/* 🔥 CSV Schema with helpful hint */}
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Model Code (Python)</label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                CSV Schema (Comma-separated column names) *
+              </label>
+              <input 
+                name="csv_schema"
+                className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-indigo-500 outline-none font-mono text-sm"
+                value={formData.csv_schema}
+                onChange={handleChange}
+                placeholder="Age,BMI,Glucose,Outcome"
+                required
+              />
+              <p className="text-xs text-gray-400 mt-1">
+                ℹ️ Must include the target column. Feature count will be calculated automatically.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Model Code (Python) *</label>
               <textarea 
                 name="model_code"
-                placeholder="def create_model(input_shape): ..."
+                placeholder={`def create_model(input_shape):
+    import tensorflow as tf
+    model = tf.keras.Sequential([
+        tf.keras.layers.Dense(64, activation='relu', input_shape=input_shape),
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+    return model`}
                 className="w-full border border-gray-300 p-3 rounded font-mono text-sm h-48 bg-gray-50 focus:bg-white transition-colors"
                 value={formData.model_code}
                 onChange={handleChange}
                 required
               />
-              <p className="text-xs text-gray-400 mt-1">Must include a `create_model` function.</p>
+              <p className="text-xs text-gray-400 mt-1">Must include a `create_model(input_shape)` function.</p>
             </div>
 
             <div className="flex justify-end">

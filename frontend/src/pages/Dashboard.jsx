@@ -13,8 +13,8 @@ const Dashboard = ({ token, onLogout }) => {
   const { metrics, status, clients, savedModels, datasets, startTraining } = useTraining(token);
   
   // New Projects Hook
+  const [selectedProjectId, setSelectedProjectId] = useState(1);
   const { projects, createNewProject, loading: loadingProjects } = useProjects(token);
-  
   const [activeTab, setActiveTab] = useState('projects'); // Default to 'Projects' so users see their workspaces first
 
   return (
@@ -73,14 +73,14 @@ const Dashboard = ({ token, onLogout }) => {
               <h1 className="text-2xl font-bold text-gray-800">Network Overview</h1>
               <button
               // 🛑 Use arrow function to prevent passing Event object as project_id
-                onClick={() => startTraining(1)} // Pass project_id explicitly
+                onClick={() => startTraining(selectedProjectId)} // Pass project_id explicitly
                 disabled={status === 'training'}
                 className={`px-6 py-2 rounded-lg font-bold text-white shadow-md transition-all ${
                   status === 'training' 
                   ? 'bg-gray-400 cursor-not-allowed' 
                   : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg transform hover:-translate-y-0.5'
                 }`}
-              >
+              > Start Training on Project {selectedProjectId}
                 {status === 'training' ? 'Training in Progress...' : 'Start Federated Training'}
               </button>
             </div>

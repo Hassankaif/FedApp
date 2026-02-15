@@ -19,9 +19,9 @@ async def register(user: UserCreate, conn = Depends(get_db_conn)):
             detail="Admin registration is restricted. Please contact support."
         )
     
-    # Optional: Force strict roles (if you only want 'client' and 'researcher')
-    if user.role not in ["client", "researcher"]:
-        user.role = "client" # Default to client for safety
+    # Optional: Force strict roles (if you only want 'hospital' and 'researcher')
+    if user.role not in ["hospital", "researcher"]:
+        user.role = "hospital" # Default to hospital for safety
 
     async with conn.cursor() as cursor:
         # 1. Check if email exists

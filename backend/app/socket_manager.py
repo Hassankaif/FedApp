@@ -1,23 +1,54 @@
 from fastapi import WebSocket
-from typing import List
+from typing import Dict, List
 
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: List[WebSocket] = []
+        # Structure: {room_id: [websocket1, websocket2, ...]}
+        self.active_connections: Dict[str, List[WebSocket]] = {}
+        # Track which room each websocket is in
+        self.connection_rooms: Dict[WebSocket, str] = {}
     
-    async def connect(self, websocket: WebSocket):
+    async def connect(self, websocket: WebSocket, room: str = "global"):
+        """Connect a websocket to a specific room"""
         await websocket.accept()
-        self.active_connections.append(websocket)
+        
+        if room not in self.active_connections:
+            self.active_connections[room] = []
+        
+        self.active_connections[room].append(websocket)
+        self.connection_rooms[websocket] = room
+        print(f"✓ Client joined room: {room}")
     
     def disconnect(self, websocket: WebSocket):
-        self.active_connections.remove(websocket)
+        """Remove websocket from its room"""
+        room = self.connection_rooms.get(websocket)
+        if room and room in self.active_connections:
+            self.active_connections[room].remove(websocket)
+            if not self.active_connections[room]:
+                del self.active_connections[room]
+        if websocket in self.connection_rooms:
+            del self.connection_rooms[websocket]
     
-    async def broadcast(self, message: dict):
-        for connection in self.active_connections:
+    async def broadcast(self, message: dict, room: str = "global"):
+        """Broadcast to a specific room only"""
+        if room not in self.active_connections:
+            return
+        
+        dead_connections = []
+        for connection in self.active_connections[room]:
             try:
                 await connection.send_json(message)
             except:
-                pass
+                dead_connections.append(connection)
+        
+        # Clean up dead connections
+        for conn in dead_connections:
+            self.disconnect(conn)
+    
+    async def broadcast_all(self, message: dict):
+        """Broadcast to all rooms"""
+        for room in list(self.active_connections.keys()):
+            await self.broadcast(message, room)
 
 manager = ConnectionManager()
 

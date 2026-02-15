@@ -42,29 +42,32 @@ def load_model_from_api(api_url, project_id, input_shape):
 
 # --- Defensive Dataset Validation ---
 def validate_dataset(csv_path, expected_schema):
+    """Enhanced validation with detailed error messages"""
     try:
         df = pd.read_csv(csv_path)
         actual_cols = [c.strip() for c in df.columns]
 
+        # Parse expected schema (handle various formats)
         if isinstance(expected_schema, str):
             try:
                 expected_schema = ast.literal_eval(expected_schema)
             except Exception:
                 expected_schema = expected_schema.split(",")
 
-        if isinstance(expected_schema, list) and len(expected_schema) == 1 and isinstance(expected_schema[0], str):
-            if expected_schema[0].strip().startswith("["):
-                try:
-                    expected_schema = ast.literal_eval(expected_schema[0])
-                except Exception:
-                    expected_schema = expected_schema[0].split(",")
-
         expected_cols = [str(c).strip(" []'\"") for c in expected_schema]
 
-        if sorted(actual_cols) != sorted(expected_cols):
+        # Check for match
+        missing = set(expected_cols) - set(actual_cols)
+        extra = set(actual_cols) - set(expected_cols)
+        
+        if missing or extra:
             print(f"❌ Schema Mismatch!", flush=True)
-            print(f"Expected: {expected_cols}", flush=True)
-            print(f"Found:    {actual_cols}", flush=True)
+            print(f"Expected: {sorted(expected_cols)}", flush=True)
+            print(f"Found:    {sorted(actual_cols)}", flush=True)
+            if missing:
+                print(f"Missing columns: {missing}", flush=True)
+            if extra:
+                print(f"Extra columns: {extra}", flush=True)
             sys.exit(1)
 
         print(f"✅ Dataset validated: {len(df)} rows", flush=True)

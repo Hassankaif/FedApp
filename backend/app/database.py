@@ -52,6 +52,18 @@ async def init_db(pool):
                     FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
                 )
             ''')
+            # Migration: Add expected_features if upgrading from old schema
+            try:
+                await cursor.execute("""
+                    SELECT expected_features FROM projects LIMIT 1
+                """)
+            except Exception:
+                # Column doesn't exist, add it
+                await cursor.execute("""
+                    ALTER TABLE projects 
+                    ADD COLUMN expected_features INT NOT NULL DEFAULT 0
+                """)
+                print("✓ Migrated: added expected_features column")
             
             # 3. Training Sessions (MERGED & FIXED)
             # Contains both project_id linkage AND the new final_strategy column

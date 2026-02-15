@@ -20,7 +20,8 @@ origins = [
     "http://localhost:5173",      # Local Testing from frontend 
     "http://127.0.0.1:5173",       # Local Testing from frontend (alternative localhost)
     "http://localhost:3000",      # for local development only, remove at production
-    "http://127.0.0.1:3000"        # for local development only, remove at production (alternative localhost)
+    "http://127.0.0.1:3000",        # for local development only, remove at production (alternative localhost)
+    "http://localhost:5174",           # electron app cors allow, for local development only, remove at production
 ]
 
 app.add_middleware(
@@ -42,11 +43,17 @@ app.include_router(projects.router)
 
 # WebSocket Endpoint
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    await manager.connect(websocket)
+async def websocket_endpoint(websocket: WebSocket, project_id: int = None):
+    room = f"project_{project_id}" if project_id else "global"
+    await manager.connect(websocket, room)
     try:
         while True:
-            await websocket.receive_text()
+            data = await websocket.receive_text()
+            # Handle room join messages
+            if data.startswith("join:"):
+                new_room = data.split(":")[1]
+                manager.disconnect(websocket)
+                await manager.connect(websocket, new_room)
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 

@@ -1,3 +1,4 @@
+# backend/app/routers/training.py - FIXED VERSION
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
 from app.database import get_db_conn
 from app.socket_manager import manager
@@ -18,8 +19,6 @@ current_config = {
     "training_mode": "federated",
     "comparison_dataset": None
 }
-
-
 
 @router.post("/vote")
 async def vote_strategy(vote: VoteRequest, conn = Depends(get_db_conn)):
@@ -64,14 +63,14 @@ async def get_final_strategy(project_id: int, conn = Depends(get_db_conn)):
     strategy = row[0] if row else "FedAvg"
     return {"strategy": strategy}
 
-# --- 2. Server Control Endpoints ---
+# --- Server Control Endpoints ---
 
 @router.get("/status")
 async def get_status(conn = Depends(get_db_conn)):
-    """Polled by FL Server to know when to wake up"""
+    """🔥 FIX #3: Include project_id so FL server knows which config to fetch"""
     async with conn.cursor() as cursor:
         await cursor.execute(
-            "SELECT status, id, final_strategy FROM training_sessions ORDER BY id DESC LIMIT 1"
+            "SELECT status, id, final_strategy, project_id FROM training_sessions ORDER BY id DESC LIMIT 1"
         )
         row = await cursor.fetchone()
     
@@ -81,12 +80,32 @@ async def get_status(conn = Depends(get_db_conn)):
     return {
         "status": row[0], 
         "session_id": row[1],
-        "strategy": row[2] 
+        "strategy": row[2],
+        "project_id": row[3]  # 🔥 NEW: FL server needs this to fetch correct config
     }
 
 @router.post("/start")
-async def start_training(project_id: int = 1, conn = Depends(get_db_conn)): #project_id is hardcoded for now, we can extend the API later to specify which project to start training on
+async def start_training(project_id: int = 1, conn = Depends(get_db_conn)):
     """Frontend 'Start' button triggers this"""
+    
+    # Validate project exists
+    async with conn.cursor() as cursor:
+        await cursor.execute("SELECT id, min_clients FROM projects WHERE id = %s", (project_id,))
+        project = await cursor.fetchone()
+        
+    if not project:
+        raise HTTPException(status_code=404, detail=f"Project {project_id} not found")
+    
+    min_clients_required = project[1]
+    
+    # Check if enough clients are registered (optional validation)
+    async with conn.cursor() as cursor:
+        await cursor.execute("SELECT COUNT(*) FROM clients WHERE status = 'online'")
+        online_clients = (await cursor.fetchone())[0]
+        
+    if online_clients < min_clients_required:
+        print(f"⚠️ Warning: Only {online_clients} clients online, but {min_clients_required} required")
+    
     # 1. Determine Winner Strategy
     final_res = await get_final_strategy(project_id, conn)
     winner_strategy = final_res["strategy"]
@@ -107,14 +126,20 @@ async def start_training(project_id: int = 1, conn = Depends(get_db_conn)): #pro
     await manager.broadcast({
         "type": "training_started",
         "session_id": session_id,
-        "strategy": winner_strategy
+        "strategy": winner_strategy,
+        "project_id": project_id
     })
     
-    return {"status": "training", "strategy": winner_strategy, "session_id": session_id}
+    return {
+        "status": "training", 
+        "strategy": winner_strategy, 
+        "session_id": session_id,
+        "project_id": project_id
+    }
 
 @router.post("/complete")
 async def complete_training(conn = Depends(get_db_conn)):
-    """FL Server calls this when 5 rounds are done"""
+    """FL Server calls this when training rounds are done"""
     async with conn.cursor() as cursor:
         await cursor.execute(
             "UPDATE training_sessions SET status='completed', completed_at=%s WHERE status='training'",
@@ -123,8 +148,6 @@ async def complete_training(conn = Depends(get_db_conn)):
     
     await manager.broadcast({"type": "training_completed"})
     return {"status": "completed"}
-
-
 
 # --- MODE SWITCHING ---
 
@@ -176,7 +199,7 @@ async def run_centralized_training(
         X_train, X_test = X[:split_idx], X[split_idx:]
         y_train, y_test = y[:split_idx], y[split_idx:]
         
-        # Create Model (Hardcoded for now, matching your main.py)
+        # Create Model (Hardcoded for now)
         model = tf.keras.Sequential([
             tf.keras.layers.Dense(64, activation='relu', input_shape=(X.shape[1],)),
             tf.keras.layers.Dropout(0.2),
@@ -202,7 +225,7 @@ async def run_centralized_training(
         async with conn.cursor() as cursor:
             # Find latest session to link results to
             await cursor.execute(
-                "SELECT id FROM training_sessions WHERE status IN ('running', 'completed') ORDER BY id DESC LIMIT 1"
+                "SELECT id FROM training_sessions WHERE status IN ('training', 'completed') ORDER BY id DESC LIMIT 1"
             )
             row = await cursor.fetchone()
             session_id = row[0] if row else None

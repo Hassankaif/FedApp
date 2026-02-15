@@ -1,3 +1,4 @@
+# fl-server/dynamic_server.py - FIXED VERSION
 import flwr as fl
 from flwr.server.strategy import FedAvg, FedProx
 import requests
@@ -7,17 +8,13 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 
-# Config
-# API_BASE = os.getenv("API_BASE", "http://localhost:8000")
-POLL_INTERVAL = 3
 # Load environment variables from .env at project root
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 API_BASE = os.getenv("API_BASE", "http://localhost:8000")
-
+POLL_INTERVAL = 3
 
 # --- 1. The Reporting Logic (Mixin) ---
-# We use a Mixin so we can attach this logic to EITHER strategy
 class ReportingMixin:
     def report_metrics(self, server_round, results):
         if not results:
@@ -26,8 +23,8 @@ class ReportingMixin:
         # Calculate Averages
         accuracies = [r.metrics.get("accuracy", 0) for _, r in results]
         losses = [r.metrics.get("loss", 0) for _, r in results]
-        avg_acc = sum(accuracies) / len(accuracies)
-        avg_loss = sum(losses) / len(losses)
+        avg_acc = sum(accuracies) / len(accuracies) if accuracies else 0
+        avg_loss = sum(losses) / len(losses) if losses else 0
 
         # Send to Backend
         try:
@@ -87,55 +84,107 @@ class CustomFedProx(FedProx, ReportingMixin):
 
 # --- 3. The Main Loop ---
 
-def run_fl_session(session_id, strategy_name):
-    print(f"🚀 Starting Session {session_id} using {strategy_name}")
+def run_fl_session(session_id, strategy_name, project_id):
+    """🔥 FIX #3: Fetch config from DB and run FL training"""
+    print(f"🚀 Starting Session {session_id} for Project {project_id} using {strategy_name}")
     
-    # DYNAMIC STRATEGY SELECTION
+    # 🔥 FETCH PROJECT CONFIGURATION FROM DATABASE
+    try:
+        config_res = requests.get(f"{API_BASE}/api/projects/{project_id}", timeout=10)
+        config_res.raise_for_status()
+        project_data = config_res.json()['project']
+        
+        num_rounds = project_data.get('num_rounds', 5)
+        local_epochs = project_data.get('local_epochs', 5)
+        batch_size = project_data.get('batch_size', 32)
+        min_clients = project_data.get('min_clients', 1)
+        
+        print(f"📋 Loaded Config from DB:")
+        print(f"   - Rounds: {num_rounds}")
+        print(f"   - Local Epochs: {local_epochs}")
+        print(f"   - Batch Size: {batch_size}")
+        print(f"   - Min Clients: {min_clients}")
+        
+    except Exception as e:
+        print(f"⚠️ Failed to fetch project config: {e}")
+        print(f"   Using fallback defaults...")
+        num_rounds, local_epochs, batch_size, min_clients = 5, 5, 32, 1
+    
+    # 🔥 DYNAMIC STRATEGY SELECTION
     if strategy_name == "FedProx":
         strategy = CustomFedProx(
-            proximal_mu=0.1,  # Force regularization for non-IID data
+            proximal_mu=0.1,  # Regularization for non-IID data
             fraction_fit=1.0,
             fraction_evaluate=1.0,
-            min_fit_clients=2,
-            min_available_clients=2
+            min_fit_clients=max(1, min_clients),
+            min_available_clients=max(1, min_clients)
         )
     else:
         strategy = CustomFedAvg(
             fraction_fit=1.0,
             fraction_evaluate=1.0,
-            min_fit_clients=1,
-            min_available_clients=1
+            min_fit_clients=max(1, min_clients),
+            min_available_clients=max(1, min_clients)
         )
 
-    # Start Server (Blocking)
+    # 🔥 PASS CONFIG TO CLIENTS VIA on_fit_config_fn
+    def fit_config(server_round: int):
+        """This function is called before each round to provide config to clients"""
+        return {
+            "local_epochs": local_epochs,
+            "batch_size": batch_size,
+            "server_round": server_round
+        }
+    
+    strategy.on_fit_config_fn = fit_config
+
+    # 🔥 START SERVER WITH DYNAMIC NUM_ROUNDS FROM DB
+    print(f"🎯 Starting Flower Server on 0.0.0.0:8080")
+    print(f"   Waiting for {min_clients} clients to connect...")
+    
     fl.server.start_server(
         server_address="0.0.0.0:8080",
-        config=fl.server.ServerConfig(num_rounds=5),
+        config=fl.server.ServerConfig(num_rounds=num_rounds),  # ✅ FROM DATABASE
         strategy=strategy
     )
+    
+    print(f"✅ Training completed after {num_rounds} rounds")
 
 def main():
-    print("⏳ FL Server Manager Online (Polling Mode)...")
+    print("="*60)
+    print("⏳ FL Server Manager Online (Polling Mode)")
+    print(f"   API Base: {API_BASE}")
+    print(f"   Poll Interval: {POLL_INTERVAL}s")
+    print("="*60)
     
     while True:
         try:
-            # 1. Check Status
+            # 1. Check Training Status
             res = requests.get(f"{API_BASE}/api/training/status", timeout=5)
             data = res.json()
             
             if data.get("status") == "training":
                 session_id = data.get("session_id")
                 strategy_name = data.get("strategy", "FedAvg")
+                project_id = data.get("project_id", 1)  # 🔥 GET PROJECT_ID
                 
-                # 2. RUN TRAINING (This blocks until 5 rounds finish)
-                run_fl_session(session_id, strategy_name)
+                print(f"\n🔔 Training Request Detected!")
+                print(f"   Session ID: {session_id}")
+                print(f"   Project ID: {project_id}")
+                print(f"   Strategy: {strategy_name}")
+                
+                # 2. RUN TRAINING (Blocks until complete)
+                run_fl_session(session_id, strategy_name, project_id)
                 
                 # 3. Mark Complete
                 requests.post(f"{API_BASE}/api/training/complete")
-                print("💤 Training finished. Returning to idle.")
+                print("💤 Session complete. Returning to idle state.\n")
                 
             time.sleep(POLL_INTERVAL)
             
+        except requests.exceptions.ConnectionError:
+            print(f"⚠️ Cannot reach backend at {API_BASE}. Retrying in 10s...")
+            time.sleep(10)
         except Exception as e:
             print(f"⚠️ Polling Error: {e}")
             time.sleep(5)
@@ -143,4 +192,4 @@ def main():
 if __name__ == "__main__":
     main()
     
-# this file is the main entry point for the FL server. It continuously polls the backend for training sessions, dynamically selects the strategy, and reports metrics and models back to the backend.
+# this file is the main entry point for the FL server. It continuously polls the backend for training requests, fetches project configurations from the database, and runs FL training sessions using either FedAvg or FedProx strategies. The server also reports metrics and uploads the global model after each round.

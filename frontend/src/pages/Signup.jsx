@@ -129,7 +129,7 @@ const Signup = () => {
               value={formData.role}
               onChange={handleChange}
             >
-              <option value="client">Client (Standard User)</option>
+              <option value="hospital"> Hospital (Standard User)</option>
               <option value="researcher">Researcher</option>
             </select>
           </div>

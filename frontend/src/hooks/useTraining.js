@@ -53,6 +53,8 @@ export const useTraining = (token) => {
 
     ws.current.onopen = () => {
       console.log("Connected to Training WebSocket");
+      // Join specific project room
+      ws.current.send(`join:project_${currentProjectId}`);
     };
 
     ws.current.onmessage = (event) => {
