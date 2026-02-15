@@ -6,7 +6,8 @@ backend/app/__pycache__/
 backend/app/routers/__pycache__/
 backend/app/models/__pycache__/
 backend/app/services/__pycache__/
-
+fl-client/node_modules/
+fl-client/
 .env
 
 frontend/node_modules/
