@@ -149,6 +149,8 @@ def run_fl_session(session_id, strategy_name, project_id):
     )
     
     print(f"✅ Training completed after {num_rounds} rounds")
+    print("⏳ Waiting 5s for network port to release...")
+    time.sleep(5)
 
 def main():
     print("="*60)

@@ -45,7 +45,7 @@ app.include_router(projects.router)
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, project_id: int = None):
     room = f"project_{project_id}" if project_id else "global"
-    await manager.connect(websocket, room)
+    await manager.connect(websocket, room) #accept the connection and add to the specified room
     try:
         while True:
             data = await websocket.receive_text()
@@ -53,12 +53,12 @@ async def websocket_endpoint(websocket: WebSocket, project_id: int = None):
             if data.startswith("join:"):
                 new_room = data.split(":")[1]
                 manager.disconnect(websocket)
-                await manager.connect(websocket, new_room)
+                manager.join_room(websocket, new_room) # use join_room() to move the client to the new room and avoid duplicate connections
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 
 @app.get("/")
 async def root():
-    return {"status": "healthy", "service": "Federated Learning API (Dockerized)"}
+    return {"status": "healthy", "service": "Federated Learning API (Dockerized) (Backend/main.py)"}
 
 # starts the FastAPI application with the defined routes and WebSocket endpoint. The lifespan function is used to manage the database connection pool, ensuring that it is properly initialized when the application starts and closed when it shuts down. The CORS middleware is configured to allow requests from specific origins, which is crucial for security in a production environment.

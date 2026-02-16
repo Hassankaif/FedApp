@@ -1,7 +1,15 @@
-// frontend/src/components/ProjectsPanel.jsx - FIXED VERSION
+// frontend/src/components/ProjectsPanel.jsx 
 import React, { useState } from 'react';
 
-const ProjectsPanel = ({ projects = [], onCreateProject, loading }) => {
+const ProjectsPanel = ({
+  projects = [], 
+  onCreateProject, 
+  loading,
+  startTraining,
+  stopTraining,
+  trainingStatus,
+  trainingProjectId
+ }) => {
   const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -208,26 +216,44 @@ const ProjectsPanel = ({ projects = [], onCreateProject, loading }) => {
         </div>
       )}
 
-      {/* Project Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {projects && projects.length > 0 ? (
-          projects.map((proj) => (
-            <div key={proj.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-all hover:-translate-y-1">
+    {/* Project Grid */}
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {projects && projects.length > 0 ? (
+        projects.map((proj) => {
+          const isThisProjectRunning = trainingStatus === 'training' && trainingProjectId === proj.id;
+          const isOtherProjectRunning = trainingStatus === 'training' && trainingProjectId !== proj.id;
+
+          return (
+            <div
+              key={proj.id}
+              className={`bg-white p-6 rounded-xl shadow-sm border transition-all ${
+                isThisProjectRunning
+                  ? 'border-green-400 ring-2 ring-green-100'
+                  : 'border-gray-200 hover:shadow-md hover:-translate-y-1'
+              }`}
+            >
               <div className="flex justify-between items-start mb-3">
-                <h3 className="font-bold text-lg text-gray-800 truncate pr-2" title={proj.name}>{proj.name}</h3>
-                <span className={`px-2 py-1 text-xs font-bold rounded-full uppercase tracking-wider ${
-                  proj.status === 'active' || proj.status === 'training'
-                    ? 'bg-green-100 text-green-700' 
-                    : 'bg-gray-100 text-gray-500'
-                }`}>
+                <h3
+                  className="font-bold text-lg text-gray-800 truncate pr-2"
+                  title={proj.name}
+                >
+                  {proj.name}
+                </h3>
+                <span
+                  className={`px-2 py-1 text-xs font-bold rounded-full uppercase tracking-wider ${
+                    proj.status === 'active' || proj.status === 'training'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-gray-100 text-gray-500'
+                  }`}
+                >
                   {proj.status || 'DRAFT'}
                 </span>
               </div>
-              
+
               <p className="text-gray-500 text-sm mb-4 h-10 line-clamp-2">
-                {proj.description || "No description provided."}
+                {proj.description || 'No description provided.'}
               </p>
-              
+
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Clients Required</span>
@@ -235,28 +261,57 @@ const ProjectsPanel = ({ projects = [], onCreateProject, loading }) => {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Rounds</span>
-                  <span className="font-medium text-gray-900">{proj.current_round || 0} / {proj.num_rounds}</span>
+                  <span className="font-medium text-gray-900">
+                    {proj.current_round || 0} / {proj.num_rounds}
+                  </span>
                 </div>
               </div>
-              
+
               <div className="border-t pt-4 flex justify-between items-center text-xs text-gray-400">
                 <span className="font-mono">ID: {proj.id}</span>
-                <span>{proj.created_at ? new Date(proj.created_at).toLocaleDateString() : 'N/A'}</span>
+                <span>
+                  {proj.created_at ? new Date(proj.created_at).toLocaleDateString() : 'N/A'}
+                </span>
+              </div>
+
+              {/* 🔥 ACTION BUTTON AREA */}
+              <div className="mt-4 pt-4 border-t">
+                {isThisProjectRunning ? (
+                  <button
+                    onClick={stopTraining}
+                    className="w-full bg-red-50 text-red-600 py-2 rounded-lg font-bold border border-red-200 hover:bg-red-100 flex items-center justify-center gap-2"
+                  >
+                    <span className="animate-pulse">●</span> Stop Training
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => startTraining(proj.id)}
+                    disabled={isOtherProjectRunning}
+                    className={`w-full py-2 rounded-lg font-bold transition-all ${
+                      isOtherProjectRunning
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-md hover:shadow-lg'
+                    }`}
+                  >
+                    {isOtherProjectRunning ? 'System Busy' : 'Start Federated Training'}
+                  </button>
+                )}
               </div>
             </div>
-          ))
-        ) : (
-          !showForm && (
-            <div className="col-span-full py-16 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
-              <div className="text-4xl mb-3">📂</div>
-              <p className="text-lg font-medium">No projects found</p>
-              <p className="text-sm">Create your first federated learning project above.</p>
-            </div>
-          )
-        )}
-      </div>
+          );
+        })
+      ) : (
+        !showForm && (
+          <div className="col-span-full py-16 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+            <div className="text-4xl mb-3">📂</div>
+            <p className="text-lg font-medium">No projects found</p>
+            <p className="text-sm">Create your first federated learning project above.</p>
+          </div>
+        )
+      )}
     </div>
-  );
-};
+    </div>
+    );
+    };
 
 export default ProjectsPanel;

@@ -1,21 +1,19 @@
 // frontend/src/pages/Dashboard.jsx
 import React, { useState } from 'react';
 import { useTraining } from '../hooks/useTraining';
-import { useProjects } from '../hooks/useProjects'; // <--- Import New Hook
+import { useProjects } from '../hooks/useProjects'; 
 import Charts from '../components/Charts';
 import ClientList from '../components/ClientList';
 import ConfigPanel from '../components/ConfigPanel';
 import ComparisonPanel from '../components/ComparisonPanel';
-import ProjectsPanel from '../components/ProjectsPanel'; // <--- Import New Component
+import ProjectsPanel from '../components/ProjectsPanel'; 
 
 const Dashboard = ({ token, onLogout }) => {
-  // Existing Training Hook
-  const { metrics, status, clients, savedModels, datasets, startTraining } = useTraining(token);
-  
-  // New Projects Hook
-  const [selectedProjectId, setSelectedProjectId] = useState(1);
+  // get props from  Projects Hook
   const { projects, createNewProject, loading: loadingProjects } = useProjects(token);
   const [activeTab, setActiveTab] = useState('projects'); // Default to 'Projects' so users see their workspaces first
+  // get props from useTraining Hook
+  const { metrics, status, trainingProjectId, clients, savedModels, datasets, startTraining, stopTraining } = useTraining(token);
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -63,6 +61,10 @@ const Dashboard = ({ token, onLogout }) => {
             projects={projects} 
             onCreateProject={createNewProject}
             loading={loadingProjects}
+            startTraining={startTraining}
+            stopTraining={stopTraining}
+            trainingStatus={status}
+            trainingProjectId={trainingProjectId}
           />
         )}
         
@@ -71,7 +73,8 @@ const Dashboard = ({ token, onLogout }) => {
           <div className="space-y-6">
              <div className="flex justify-between items-center">
               <h1 className="text-2xl font-bold text-gray-800">Network Overview</h1>
-              <button
+              {/* removed button and shifted to projects panel for now ... */}
+              {/* <button
               // 🛑 Use arrow function to prevent passing Event object as project_id
                 onClick={() => startTraining(selectedProjectId)} // Pass project_id explicitly
                 disabled={status === 'training'}
@@ -80,9 +83,9 @@ const Dashboard = ({ token, onLogout }) => {
                   ? 'bg-gray-400 cursor-not-allowed' 
                   : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-lg transform hover:-translate-y-0.5'
                 }`}
-              > Start Training on Project {selectedProjectId}
+              > Start Training on Project {trainingProjectId}
                 {status === 'training' ? 'Training in Progress...' : 'Start Federated Training'}
-              </button>
+              </button> */}
             </div>
 
             {/* Grid Layout for Charts & Clients */}

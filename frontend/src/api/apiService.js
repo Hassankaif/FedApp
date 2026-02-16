@@ -93,8 +93,12 @@ export const apiService = {
 
   // === TRAINING CONTROL & VOTING (training.py) ===
   training: {
-    start: async (projectId = 1) => {
+    start: async (projectId) => {
       const res = await api.post(`/training/start?project_id=${projectId}`);
+      return res.data;
+    },
+    stop: async () => {
+      const res = await api.post("/training/stop");
       return res.data;
     },
     getStatus: async () => { // used by server to know when to wake up and run the training loop, and also by frontend to display current status to users

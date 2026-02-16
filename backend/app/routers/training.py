@@ -137,6 +137,24 @@ async def start_training(project_id: int = 1, conn = Depends(get_db_conn)):
         "project_id": project_id
     }
 
+
+@router.post("/stop")
+async def stop_training(conn = Depends(get_db_conn)):
+    """Force stop/cancel the current training session"""
+    async with conn.cursor() as cursor:
+        await cursor.execute(
+            "UPDATE training_sessions SET status='cancelled' WHERE status='training'"
+        )
+
+    # Notify clients (optional but good for consistency)
+    await manager.broadcast({"type": "training_stopped"})
+    
+    return {"status": "cancelled"}
+
+
+
+
+
 @router.post("/complete")
 async def complete_training(conn = Depends(get_db_conn)):
     """FL Server calls this when training rounds are done"""

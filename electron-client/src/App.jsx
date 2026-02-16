@@ -1,4 +1,4 @@
-// electron-client/src/App.jsx - FIXED VERSION WITH AUTHENTICATION
+// electron-client/src/App.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import axios from 'axios';
@@ -38,6 +38,10 @@ function App() {
   const [isTraining, setIsTraining] = useState(false);
   const logEndRef = useRef(null);
 
+  // ==================== VOTING STATE ====================
+  const [vote, setVote] = useState(''); 
+  const [voteStatus, setVoteStatus] = useState(null);
+
   // ==================== EFFECTS ====================
   
   // Auto-scroll logs
@@ -45,14 +49,38 @@ function App() {
     logEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
 
+  
   // Listen for Electron logs
   useEffect(() => {
-    if (window.electron) {
-      window.electron.onLog((msg) => {
+    // 1. Listen for Logs
+    if (!window.electron){
+      console.warn("Electron Bridge not found! Logs will not appear if running in browser mode.");
+    } else {
+      const removeLogListener = window.electron.onLog((msg) => {
         setLogs(prev => [...prev, msg]);
       });
+
+      // 2. Listen for Status
+      const removeStatusListener = window.electron.onStatus((data) => {
+        console.log("Training Status:", data);
+        
+        // STOP THE SPINNER
+        setIsTraining(false); 
+
+        if (data.status === 'error') {
+          alert(`Training failed with code ${data.code}`);
+        } else if (data.status === 'completed') {
+          // Optional: Success notification
+        }
+      });
+      
+      return () => {
+        removeLogListener(); 
+        removeStatusListener();
+      };
     }
   }, []);
+
 
   // Attach token to all API requests
   useEffect(() => {
@@ -152,6 +180,8 @@ function App() {
     setShowProjectBrowser(true);
     setCsvPath('');
     setLogs([]);
+    setVote(''); // Reset vote
+    setVoteStatus(null);
     localStorage.removeItem('fedapp_token');
     localStorage.removeItem('fedapp_user');
   };
@@ -177,15 +207,27 @@ function App() {
     }
   };
 
+  // 🔥 FIX 1: Safe Browse Handler
   const handleBrowse = async () => {
-    const path = await window.electron.selectCsv();
-    if (path) {
-      setCsvPath(path);
-      setLogs(prev => [...prev, `📁 Selected: ${path}`]);
+    if (window.electron) {
+      try {
+        const path = await window.electron.selectCsv(); 
+        if (path) {
+          setCsvPath(path);
+          setLogs(prev => [...prev, `📁 Selected: ${path}`]);
+        }
+      } catch (err) {
+        console.error("Error selecting file:", err);
+      }
+    } else {
+      console.error("Electron Bridge not found. Are you running in Electron mode?");
+      alert("Electron integration missing. Cannot browse local files.");
     }
   };
-
+  
+  // 🔥 FIX 2: Safe Start Handler (Merges logic from startClientNode)
   const handleStart = async () => {
+    // Validation
     if (!csvPath) {
       alert("Please select a dataset first!");
       return;
@@ -195,20 +237,41 @@ function App() {
       alert("No project selected!");
       return;
     }
+
+    if (!config.clientId) {
+      alert("Client ID is missing!");
+      return;
+    }
     
     setIsTraining(true);
     setLogs(prev => [...prev, "🚀 Initializing FL Client..."]);
     
-    await window.electron.startTraining({ 
-      ...config, 
-      dataPath: csvPath 
-    });
+    // Check bridge
+    if (window.electron) {
+      try {
+        await window.electron.startTraining({ 
+          ...config, 
+          dataPath: csvPath 
+        });
+      } catch (err) {
+        setIsTraining(false);
+        setLogs(prev => [...prev, `❌ Error starting training: ${err.message}`]);
+      }
+    } else {
+      setIsTraining(false);
+      const msg = "❌ Error: Electron Bridge not found. Cannot start Python client.";
+      console.error(msg);
+      setLogs(prev => [...prev, msg]);
+      alert(msg);
+    }
   };
 
   const handleStop = async () => {
-    await window.electron.stopTraining();
-    setIsTraining(false);
-    setLogs(prev => [...prev, "🛑 Training Stopped by User"]);
+    if (window.electron) {
+        await window.electron.stopTraining();
+        setIsTraining(false);
+        setLogs(prev => [...prev, "🛑 Training Stopped by User"]);
+    }
   };
 
   const handleBackToProjects = () => {
@@ -217,6 +280,35 @@ function App() {
       setSelectedProject(null);
       setCsvPath('');
       setLogs([]);
+      setVote('');
+      setVoteStatus(null);
+    }
+  };
+
+  // 🔥 NEW: Handle Voting
+  const handleVote = async (strategy) => {
+    if (!config.projectId || !config.clientId) {
+      alert("Missing Project ID or Client ID");
+      return;
+    }
+
+    try {
+      const res = await api.post('/training/vote', {
+        project_id: config.projectId,
+        client_id: config.clientId,
+        strategy: strategy
+      });
+      
+      const data = res.data;
+      setVote(strategy);
+      const statusMsg = `✅ Voted for ${strategy}. Tally: ${JSON.stringify(data.tally)}`;
+      setVoteStatus(statusMsg);
+      setLogs(prev => [...prev, statusMsg]); 
+    } catch (err) {
+      console.error("Voting failed", err);
+      const errorMsg = "❌ Voting failed: " + (err.response?.data?.detail || err.message);
+      setVoteStatus(errorMsg);
+      setLogs(prev => [...prev, errorMsg]);
     }
   };
 
@@ -411,6 +503,30 @@ function App() {
               value={config.projectId || 'N/A'} 
               disabled
             />
+          </div>
+
+          {/* Voting UI Section */}
+          <div className="voting-section" style={{marginTop: '20px', marginBottom: '20px', borderTop: '1px solid #eee', paddingTop: '15px'}}>
+             <h3 style={{fontSize: '1rem', marginBottom: '10px'}}>🗳️ Vote Strategy</h3>
+             <div className="vote-buttons" style={{display: 'flex', gap: '10px'}}>
+               <button 
+                 className={`btn-vote ${vote === 'FedAvg' ? 'selected' : ''}`} 
+                 onClick={() => handleVote('FedAvg')}
+                 disabled={isTraining}
+                 style={{flex: 1, padding: '8px', cursor: isTraining ? 'not-allowed' : 'pointer'}}
+               >
+                 FedAvg
+               </button>
+               <button 
+                 className={`btn-vote ${vote === 'FedProx' ? 'selected' : ''}`} 
+                 onClick={() => handleVote('FedProx')}
+                 disabled={isTraining}
+                 style={{flex: 1, padding: '8px', cursor: isTraining ? 'not-allowed' : 'pointer'}}
+               >
+                 FedProx
+               </button>
+             </div>
+             {voteStatus && <small style={{display: 'block', marginTop: '5px', color: '#666'}}>{voteStatus}</small>}
           </div>
 
           <h3>Dataset</h3>

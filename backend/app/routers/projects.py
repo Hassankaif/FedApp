@@ -121,30 +121,31 @@ async def get_model_code(project_id: int, conn = Depends(get_db_conn)):
 
 @router.get("/")
 async def list_projects(
-    owner_id: int = None, # Make this optional
+    owner_id: int = None, # 
     conn = Depends(get_db_conn),
     current_user: dict = Depends(get_current_user) # 🔒 Get user from Token
 ):
-    """List projects: Admins see all, Researchers see their own"""
+    """List projects: Admins see all (wrong), Researchers see their own"""
+    """List projects: Modified to allow everyone to see all projects"""
     
     async with conn.cursor() as cursor:
-        if current_user['role'] == 'admin':
+        # if current_user['role'] == 'admin':
             # Admin sees ALL projects
-            await cursor.execute("""
-                SELECT id, name, description, status, current_round, 
-                       num_rounds, total_clients, created_at
-                FROM projects 
-                ORDER BY created_at DESC
-            """)
-        else:
-            # Researchers only see THEIR projects
-            await cursor.execute("""
-                SELECT id, name, description, status, current_round, 
-                       num_rounds, total_clients, created_at
-                FROM projects 
-                WHERE owner_id = %s 
-                ORDER BY created_at DESC
-            """, (current_user['id'],))
+        await cursor.execute("""
+            SELECT id, name, description, status, current_round, 
+                    num_rounds, total_clients, created_at
+            FROM projects 
+            ORDER BY created_at DESC
+        """)
+        # else:
+        #     # Researchers only see THEIR projects
+        #     await cursor.execute("""
+        #         SELECT id, name, description, status, current_round, 
+        #                num_rounds, total_clients, created_at
+        #         FROM projects 
+        #         WHERE owner_id = %s 
+        #         ORDER BY created_at DESC
+        #     """, (current_user['id'],))
             
         rows = await cursor.fetchall()
     

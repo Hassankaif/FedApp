@@ -8,6 +8,7 @@ export const useTraining = (token) => {
   const [clients, setClients] = useState([]);
   const [savedModels, setSavedModels] = useState([]);
   const [datasets, setDatasets] = useState([]);
+  const [trainingProjectId, setTrainingProjectId] = useState(null); // Track which project is currently training
   
   const ws = useRef(null);
 
@@ -27,7 +28,11 @@ export const useTraining = (token) => {
 
       if (statusData.status === 'training'){
         setStatus('training');
-      } 
+        setTrainingProjectId(statusData.project_id);
+      } else {
+        setStatus('idle');
+        setTrainingProjectId(null);
+      }
     } catch (err) {
       console.error("Failed to fetch training data:", err);
     }
@@ -42,19 +47,21 @@ export const useTraining = (token) => {
   useEffect(() => {
     if (!token) return;
     // Determine WS URL based on current window location
-    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    // const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
     // const wsUrl = isLocal 
     //   ? "ws://127.0.0.1:8000/ws" 
     //   : "ws://139.59.87.244:8000/ws";
-    const wsUrl = import.meta.env.VITE_WS_URL ;
+    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
 
     // WebSocket Connection
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
       console.log("Connected to Training WebSocket");
-      // Join specific project room
-      ws.current.send(`join:project_${currentProjectId}`);
+      const room = trainingProjectId ? `project_${trainingProjectId}` : 'global';
+      console.log(`Joining WebSocket room: ${room}`);
+      // if know, Join specific project room otherwise join global room to receive general updates (e.g. new client registrations)
+      ws.current.send(`join:${room}`);
     };
 
     ws.current.onmessage = (event) => {
@@ -62,17 +69,21 @@ export const useTraining = (token) => {
         const msg = JSON.parse(event.data);
         switch (msg.type) {
           case 'metrics_update':
+            const newData = msg.data || msg;
             //check if msg.data exists and is an object with expected properties,otherwise use msg directly if format differs 
-            setMetrics(prev => [...prev, msg.data]);
+            setMetrics(prev => [...prev, newData]);
             break;
 
           case 'training_started':
             setStatus('training');
+            setTrainingProjectId(msg.project_id);
             setMetrics([]); // Clear old metrics for new session
             break;
 
           case 'training_completed':
-            setStatus('completed');
+          case 'training_stopped':
+            setStatus('idle');
+            setTrainingProjectId(null);
             fetchData(); // Refresh models list to show new global model
             break;
 
@@ -107,16 +118,28 @@ export const useTraining = (token) => {
         ws.current.close();
       }
     };
-  }, [token, fetchData]);
+  }, [token, fetchData, trainingProjectId]);
 
-  const startTraining = async (projectId = 1) => {
+  const startTraining = async (projectId) => {
     try {
       await apiService.training.start(projectId);
       setStatus('training');
+      setTrainingProjectId(projectId); // status update will be triggered by WebSocket message, but we can set it here immediately for better UX
       setMetrics([]); // Reset metrics UI immediately
     } catch (err) {
       console.error("Failed to start training:", err);
       alert("Failed to start training. Check console.");
+    }
+  };
+
+  const stopTraining = async () => {
+    try {
+      await apiService.training.stop();
+      setStatus('idle');
+      setTrainingProjectId(null);
+    } catch (err) {
+      console.error("Failed to stop training:", err);
+      alert("Failed to stop training. Check console.");
     }
   };
 
@@ -132,11 +155,13 @@ export const useTraining = (token) => {
 
   return { 
     metrics, 
-    status, 
+    status,
+    trainingProjectId, 
     clients, 
     savedModels, 
     datasets, 
     startTraining,
+    stopTraining,
     runCentralized,
     refresh: fetchData
   };
