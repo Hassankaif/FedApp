@@ -10,7 +10,7 @@ class ConnectionManager:
         
     async def connect(self, websocket: WebSocket, room: str = "global"):
         """Initial connection: Accept socket and join room (room is optional, defaults to 'global')"""
-        await websocket.accept()  # Accepting is handled in main.py, so we don't do it here
+        await websocket.accept()        # Accepting is handled in main.py, so we don't do it here
         self.join_room(websocket, room)  # Automatically join the specified room
         print("✓ Client connected")
         

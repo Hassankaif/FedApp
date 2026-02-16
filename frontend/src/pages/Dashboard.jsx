@@ -7,10 +7,11 @@ import ClientList from '../components/ClientList';
 import ConfigPanel from '../components/ConfigPanel';
 import ComparisonPanel from '../components/ComparisonPanel';
 import ProjectsPanel from '../components/ProjectsPanel'; 
+import AnalyticsPanel from '../components/AnalyticsPanel';
 
 const Dashboard = ({ token, onLogout }) => {
   // get props from  Projects Hook
-  const { projects, createNewProject, loading: loadingProjects } = useProjects(token);
+  const { projects, templates, loading: loadingProjects, createNewProject, saveCustomTemplate, refreshProjects } = useProjects(token);
   const [activeTab, setActiveTab] = useState('projects'); // Default to 'Projects' so users see their workspaces first
   // get props from useTraining Hook
   const { metrics, status, trainingProjectId, clients, savedModels, datasets, startTraining, stopTraining } = useTraining(token);
@@ -26,7 +27,7 @@ const Dashboard = ({ token, onLogout }) => {
               
               {/* Tab Switcher */}
               <div className="flex space-x-2 bg-gray-100 p-1 rounded-lg">
-                {['projects', 'dashboard', 'config', 'comparison'].map((tab) => (
+                {['projects', 'dashboard', 'analytics', 'config', 'comparison'].map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -54,12 +55,16 @@ const Dashboard = ({ token, onLogout }) => {
       
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6">
+        {/* {projectError && <div className="mb-4 p-4 bg-red-100 text-red-700 rounded">{projectError}</div>} */}
 
         {/* 1. Projects Panel */}
         {activeTab === 'projects' && (
           <ProjectsPanel 
             projects={projects} 
+            templates={templates}
             onCreateProject={createNewProject}
+            onSaveTemplate={saveCustomTemplate}
+            onRefresh={refreshProjects}
             loading={loadingProjects}
             startTraining={startTraining}
             stopTraining={stopTraining}
@@ -99,12 +104,17 @@ const Dashboard = ({ token, onLogout }) => {
             </div>
           </div>
         )}
+
+        {/* 3. Analytics Panel */}
+        {activeTab === 'analytics' && (
+          <AnalyticsPanel token={token} />
+        )}
         
-        {/* 3. Configuration Panel */}
+        {/* 4. Configuration Panel */}
         {activeTab === 'config' && (
           <ConfigPanel savedModels={savedModels} datasets={datasets} />
         )}
-        {/* 4. Comparison Panel */}
+        {/* 5. Comparison Panel */}
         {activeTab === 'comparison' && (
           <ComparisonPanel token={token} />
         )}

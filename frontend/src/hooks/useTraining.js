@@ -8,8 +8,10 @@ export const useTraining = (token) => {
   const [clients, setClients] = useState([]);
   const [savedModels, setSavedModels] = useState([]);
   const [datasets, setDatasets] = useState([]);
-  const [trainingProjectId, setTrainingProjectId] = useState(null); // Track which project is currently training
+  // const [trainingProjectId, setTrainingProjectId] = useState(null); // Track which project is currently training
   
+  const [activeProjectId, setActiveProjectId] = useState(null); 
+
   const ws = useRef(null);
 
   // Define fetch function
@@ -28,10 +30,10 @@ export const useTraining = (token) => {
 
       if (statusData.status === 'training'){
         setStatus('training');
-        setTrainingProjectId(statusData.project_id);
+        setActiveProjectId(statusData.project_id);
       } else {
         setStatus('idle');
-        setTrainingProjectId(null);
+        setActiveProjectId(null);
       }
     } catch (err) {
       console.error("Failed to fetch training data:", err);
@@ -52,13 +54,14 @@ export const useTraining = (token) => {
     //   ? "ws://127.0.0.1:8000/ws" 
     //   : "ws://139.59.87.244:8000/ws";
     const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
-
+    if (ws.current) ws.current.close(); // Close existing connection if any
+    
     // WebSocket Connection
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
       console.log("Connected to Training WebSocket");
-      const room = trainingProjectId ? `project_${trainingProjectId}` : 'global';
+      const room = activeProjectId ? `project_${activeProjectId}` : 'global';
       console.log(`Joining WebSocket room: ${room}`);
       // if know, Join specific project room otherwise join global room to receive general updates (e.g. new client registrations)
       ws.current.send(`join:${room}`);
@@ -70,20 +73,21 @@ export const useTraining = (token) => {
         switch (msg.type) {
           case 'metrics_update':
             const newData = msg.data || msg;
+            console.log("Received metrics update:", newData);
             //check if msg.data exists and is an object with expected properties,otherwise use msg directly if format differs 
             setMetrics(prev => [...prev, newData]);
             break;
 
           case 'training_started':
             setStatus('training');
-            setTrainingProjectId(msg.project_id);
+           if (msg.project_id) setActiveProjectId(msg.project_id);
             setMetrics([]); // Clear old metrics for new session
             break;
 
           case 'training_completed':
           case 'training_stopped':
             setStatus('idle');
-            setTrainingProjectId(null);
+            setActiveProjectId(null);
             fetchData(); // Refresh models list to show new global model
             break;
 
@@ -101,7 +105,7 @@ export const useTraining = (token) => {
             break;
 
           default:
-            console.warn("Unknown WebSocket message type:", msg.type);
+            console.warn("Unknown WebSocket message type: Defaulting to console.log", msg.type);
             break;
         }
       } catch (err) {
@@ -118,13 +122,13 @@ export const useTraining = (token) => {
         ws.current.close();
       }
     };
-  }, [token, fetchData, trainingProjectId]);
+  }, [token, setActiveProjectId]);
 
   const startTraining = async (projectId) => {
     try {
       await apiService.training.start(projectId);
       setStatus('training');
-      setTrainingProjectId(projectId); // status update will be triggered by WebSocket message, but we can set it here immediately for better UX
+      setActiveProjectId(projectId); // status update will be triggered by WebSocket message, but we can set it here immediately for better UX
       setMetrics([]); // Reset metrics UI immediately
     } catch (err) {
       console.error("Failed to start training:", err);
@@ -136,7 +140,7 @@ export const useTraining = (token) => {
     try {
       await apiService.training.stop();
       setStatus('idle');
-      setTrainingProjectId(null);
+      setActiveProjectId(null);
     } catch (err) {
       console.error("Failed to stop training:", err);
       alert("Failed to stop training. Check console.");
@@ -156,7 +160,7 @@ export const useTraining = (token) => {
   return { 
     metrics, 
     status,
-    trainingProjectId, 
+    trainingProjectId: activeProjectId, // Expose activeProjectId for components that need to know which project is currently active (training or selected)
     clients, 
     savedModels, 
     datasets, 

@@ -1,10 +1,11 @@
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from fastapi.responses import FileResponse
 from app.database import get_db_conn
-from app.models.schemas import ModelConfig 
+from app.models.schemas import ModelConfig , TemplateCreate
+from app.routers.auth import get_current_user # 🔒 Import auth dependency to get current user
 from app.routers.training import current_config # Import shared state from training router or a common state file
 import os
-import pickle
+import pickle # For saving/loading model weights
 import pandas as pd
 from datetime import datetime
 
@@ -158,3 +159,31 @@ async def get_current_config():
         "dataset_path": current_config.get("dataset_path"),
         "training_mode": current_config.get("training_mode", "federated")
     }
+
+
+# create new model-code templates router
+@router.get("/api/models/templates")
+async def list_model_templates(conn = Depends(get_db_conn)):
+    """List available model templates"""
+    async with conn.cursor() as cursor:
+        await cursor.execute("SELECT id, name, description, model_code FROM model_templates ORDER BY id ASC")
+        rows = await cursor.fetchall()
+    
+    return {
+        "templates": [
+            {"id": row[0], "name": row[1], "description": row[2], "code": row[3]}
+            for row in rows
+        ]
+    }
+
+@router.post("/api/models/templates")
+async def create_model_template(template: TemplateCreate, conn = Depends(get_db_conn)):
+    """Save a new model template"""
+    async with conn.cursor() as cursor:
+        await cursor.execute(
+            "INSERT INTO model_templates (name, description, model_code) VALUES (%s, %s, %s)",
+            (template.name, template.description, template.model_code)
+        )
+        template_id = cursor.lastrowid
+        
+    return {"status": "success", "id": template_id, "message": "Template saved"}

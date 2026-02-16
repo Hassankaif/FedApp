@@ -44,6 +44,7 @@ app.include_router(projects.router)
 # WebSocket Endpoint
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket, project_id: int = None):
+    # initial connection
     room = f"project_{project_id}" if project_id else "global"
     await manager.connect(websocket, room) #accept the connection and add to the specified room
     try:
@@ -52,8 +53,9 @@ async def websocket_endpoint(websocket: WebSocket, project_id: int = None):
             # Handle room join messages
             if data.startswith("join:"):
                 new_room = data.split(":")[1]
-                manager.disconnect(websocket)
-                manager.join_room(websocket, new_room) # use join_room() to move the client to the new room and avoid duplicate connections
+                
+                manager.disconnect(websocket) #remove old room
+                manager.join_room(websocket, new_room) # add to new room
     except WebSocketDisconnect:
         manager.disconnect(websocket)
 

@@ -9,9 +9,10 @@ import json
 router = APIRouter(prefix="/api/projects", tags=["projects"])
 
 @router.post("/")
-async def create_project(project: ProjectCreate, conn = Depends(get_db_conn)):
+async def create_project(project: ProjectCreate, 
+                         conn = Depends(get_db_conn), 
+                         current_user: dict = Depends(get_current_user)): #inject users owner id
     """Create new FL project"""
-    
     # 1. Validate model code
     validation = DynamicModelLoader.validate_model_code(project.model_code)
     if not validation['valid']:
@@ -39,7 +40,7 @@ async def create_project(project: ProjectCreate, conn = Depends(get_db_conn)):
         """, (
             project.name,
             project.description,
-            project.owner_id,
+            current_user['id'],  # Set owner_id from authenticated user
             project.model_code,
             schema_json,  # Store as JSON string
             len(schema_list),

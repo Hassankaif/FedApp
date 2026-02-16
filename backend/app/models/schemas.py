@@ -61,6 +61,11 @@ class ModelConfig(BaseModel):
     model_code: str
     dataset_path: str
     
+class TemplateCreate(BaseModel): # For creating new model-code templates
+    name: str
+    description: str = ""
+    model_code: str
+    
 # --- NEW MODELS ---
 class CentralizedMetrics(BaseModel):
     accuracy: float

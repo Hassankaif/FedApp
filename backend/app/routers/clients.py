@@ -19,7 +19,7 @@ async def register_client(client: ClientRegistration, conn = Depends(get_db_conn
              "online", datetime.utcnow(), client.total_samples)
         )
     
-    await manager.broadcast({
+    await manager.broadcast_all({
         "type": "client_registered",
         "client_id": client.client_id
     })

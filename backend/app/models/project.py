@@ -15,7 +15,7 @@ class ProjectBase(BaseModel):
     min_clients: int = 3
 
 class ProjectCreate(ProjectBase):
-    owner_id: int
+    pass #owner_id: int is not needed as it will be derived from the authenticated user
 
 class Project(ProjectBase):
     id: int

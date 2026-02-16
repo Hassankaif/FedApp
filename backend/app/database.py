@@ -158,6 +158,17 @@ async def init_db(pool):
                     UNIQUE KEY unique_vote (project_id, client_id)
                 );
             """)
+            # 9. Model Templates (New Feature)
+            await cursor.execute('''
+                CREATE TABLE IF NOT EXISTS model_templates (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    name VARCHAR(100) NOT NULL,
+                    description VARCHAR(255),
+                    model_code TEXT NOT NULL,
+                    framework VARCHAR(50) DEFAULT 'tensorflow',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')            
             
             # Insert default admin
             await cursor.execute('''

@@ -167,6 +167,16 @@ export const apiService = {
 
   // === MODELS & DATASETS (models.py) ===
   models: {
+      listTemplates: async (token) => {
+      const res = await api.get('/models/templates', { headers: { Authorization: `Bearer ${token}` } });
+      return res.data;
+    },
+    saveTemplate: async (token, data) => {
+      const res = await api.post('/models/templates', data, { headers: { Authorization: `Bearer ${token}` } });
+      return res.data;
+    },
+
+    
     saveGlobal: async (file) => {
       const formData = new FormData();
       formData.append("file", file);

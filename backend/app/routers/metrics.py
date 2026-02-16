@@ -8,13 +8,12 @@ import json
 router = APIRouter(tags=["metrics"])
 
 # This router handles receiving metrics from the FL server and providing endpoints for the frontend to fetch metrics data.
-# metrics.py
 @router.post("/api/training/metrics")
 async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
     async with conn.cursor() as cursor:
         # We fetch the latest session and join with projects to get num_rounds
         await cursor.execute("""
-            SELECT ts.id, p.num_rounds 
+            SELECT ts.id, p.num_rounds , ts.project_id
             FROM training_sessions ts
             JOIN projects p ON ts.project_id = p.id 
             WHERE ts.status = 'training' 
@@ -24,8 +23,8 @@ async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
         
         if not row:
             raise HTTPException(status_code=404, detail="No active training session found")
-        
-        session_id, total_rounds = row[0], row[1]
+        #unpack project_id for later use if needed
+        session_id, total_rounds, project_id = row[0], row[1], row[2]
 
         # Insertion logic using exactly your MetricsReport model
         await cursor.execute(
@@ -47,7 +46,9 @@ async def report_metrics(metrics: MetricsReport, conn = Depends(get_db_conn)):
             )
     
     # WebSocket broadcast remains the same
-    await manager.broadcast(json.dumps({"type": "metrics_update", "data": metrics.model_dump()}))
+    await manager.broadcast({"type": "metrics_update", "data": metrics.model_dump()}, 
+                            room=f"project_{project_id}"
+                            )  # Broadcast to the project room
     return {"status": "received"}
 
 
