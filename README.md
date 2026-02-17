@@ -1,854 +1,747 @@
-# Privacy-Preserving Federated Learning System for Chronic Disease Risk Prediction
+# Privacy-Preserving Federated Learning Platform
 
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
+[![Python](https://img.shields.io/badge/Python-3.9+-blue)](https://www.python.org/)
 [![TensorFlow](https://img.shields.io/badge/TensorFlow-2.16-orange)](https://www.tensorflow.org/)
 [![Flower](https://img.shields.io/badge/Flower-1.7.0-green)](https://flower.dev/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.109-teal)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18.2-61DAFB)](https://reactjs.org/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED)](https://www.docker.com/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **A production-ready federated learning system enabling multiple hospitals to collaboratively train machine learning models for disease prediction without sharing sensitive patient data.**
+> **A production-ready federated learning platform enabling healthcare institutions to collaboratively train ML models without sharing sensitive patient data. Features project management, dynamic strategy voting, real-time monitoring, and multi-user collaboration.**
 
 ---
 
 ## 📑 Table of Contents
 
-1. [Overview](#overview)
-2. [Problem Statement](#problem-statement)
-3. [Solution Architecture](#solution-architecture)
-4. [Key Features](#key-features)
-5. [Technology Stack](#technology-stack)
-6. [System Requirements](#system-requirements)
-7. [Installation](#installation)
-8. [Project Structure](#project-structure)
-9. [Configuration](#configuration)
-10. [Usage Guide](#usage-guide)
-11. [API Documentation](#api-documentation)
-12. [Federated Learning Process](#federated-learning-process)
-13. [Security & Privacy](#security--privacy)
-14. [Performance Evaluation](#performance-evaluation)
-15. [Troubleshooting](#troubleshooting)
-16. [Contributing](#contributing)
-17. [Future Enhancements](#future-enhancements)
-18. [License](#license)
-19. [Acknowledgments](#acknowledgments)
+1. [Overview](#-overview)
+2. [Key Features](#-key-features)
+3. [Architecture](#-architecture)
+4. [Technology Stack](#-technology-stack)
+5. [Project Structure](#-project-structure)
+6. [Prerequisites](#-prerequisites)
+7. [Installation](#-installation)
+8. [Configuration](#-configuration)
+9. [Usage Guide](#-usage-guide)
+10. [API Documentation](#-api-documentation)
+11. [Deployment](#-deployment)
+12. [Security & Privacy](#-security--privacy)
+13. [Troubleshooting](#-troubleshooting)
+14. [Contributing](#-contributing)
+15. [License](#-license)
 
 ---
 
-## 📖 Overview
+## 🎯 Overview
 
-This project implements a **cross-silo federated learning system** where multiple healthcare institutions (hospitals) can collaboratively train a machine learning model for chronic disease risk prediction while maintaining complete data privacy. The system uses the **Federated Averaging (FedAvg)** algorithm and provides a comprehensive web-based dashboard for monitoring, configuration, and model management.
+This platform implements a **cross-silo federated learning system** where multiple healthcare institutions can collaboratively train machine learning models while maintaining complete data privacy. Unlike traditional ML approaches that require centralizing sensitive medical data, our system enables:
 
-### What is Federated Learning?
+- **Privacy-Preserving Training**: Patient data never leaves hospital premises
+- **Multi-Project Management**: Create and manage multiple FL projects simultaneously
+- **Role-Based Access**: Admin, Researcher, and Hospital user roles
+- **Dynamic Strategy Selection**: Vote between FedAvg and FedProx algorithms
+- **Real-Time Monitoring**: WebSocket-powered live training visualization
+- **Flexible Model Architecture**: Custom model templates or bring your own code
+- **Production Deployment**: Docker-ready with MySQL database
 
-Federated Learning (FL) is a machine learning approach that enables training models across decentralized data sources without exchanging raw data. Instead of centralizing patient data (which raises privacy concerns), each hospital:
+### What Makes This Different?
 
-1. Trains a model locally on their own data
-2. Shares only model updates (weights) with a central server
-3. Receives an improved global model aggregated from all participants
-
-### Why This Project Matters
-
-- **Privacy**: Patient data never leaves hospital premises, complying with HIPAA, GDPR, and other regulations
-- **Collaboration**: Smaller hospitals benefit from larger datasets without data sharing
-- **Performance**: Achieves competitive accuracy compared to centralized training
-- **Scalability**: Easily extends to N participating hospitals
-- **Production-Ready**: Includes monitoring, versioning, and deployment capabilities
-
----
-
-## 🎯 Problem Statement
-
-### Healthcare Data Challenges
-
-1. **Data Silos**: Healthcare institutions possess valuable patient data that cannot be centralized due to:
-   - Privacy regulations (HIPAA, GDPR)
-   - Institutional policies
-   - Patient consent limitations
-   - Security concerns
-
-2. **Limited Dataset Size**: Individual hospitals may have insufficient data for robust ML model training
-
-3. **Data Heterogeneity**: Different hospitals have varying:
-   - Patient demographics
-   - Disease prevalence
-   - Equipment and procedures
-   - Data collection methods (Non-IID data)
-
-4. **Collaboration Barriers**: Traditional ML requires data centralization, which is:
-   - Legally problematic
-   - Technically challenging
-   - Privacy-invasive
-   - Expensive to implement
-
-### Research Gap
-
-Existing solutions often:
-- Lack production-ready implementations
-- Don't provide real-time monitoring
-- Miss model versioning and comparison features
-- Require complex setup and maintenance
-
----
-
-## 🏗️ Solution Architecture
-
-### High-Level Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Admin Web Dashboard                       │
-│        (React + Vite + Recharts + WebSocket)                │
-│  ┌──────────┬──────────┬──────────┬──────────┐             │
-│  │Dashboard │Comparison│  Config  │  Models  │             │
-│  └──────────┴──────────┴──────────┴──────────┘             │
-└────────────────────────┬────────────────────────────────────┘
-                         │ REST API + WebSocket
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│              Backend Orchestrator (FastAPI)                  │
-│  • Authentication (JWT)                                      │
-│  • Training Coordination                                     │
-│  • Metrics Storage (MySQL)                                   │
-│  • Model Registry                                            │
-│  • Configuration Management                                  │
-└────────────────────────┬────────────────────────────────────┘
-                         │ gRPC (Flower Protocol)
-                         ▼
-┌─────────────────────────────────────────────────────────────┐
-│        Federated Learning Server (Flower + FedAvg)          │
-│  • Client Coordination                                       │
-│  • Model Aggregation                                         │
-│  • Round Management                                          │
-│  • Global Model Storage                                      │
-└────────────┬────────────┬────────────┬───────────────────────┘
-             │            │            │
-             ▼            ▼            ▼
-    ┌────────────┐ ┌────────────┐ ┌────────────┐
-    │FL Client A │ │FL Client B │ │FL Client C │
-    │Hospital A  │ │Hospital B  │ │Hospital C  │
-    │TensorFlow  │ │TensorFlow  │ │TensorFlow  │
-    │Local Data  │ │Local Data  │ │Local Data  │
-    └────────────┘ └────────────┘ └────────────┘
-```
-![Logo](zDummy/Project-architecture.png)
-
-### Component Interaction Flow
-
-```
-1. Admin logs into dashboard
-2. Admin configures training parameters (mode, rounds, etc.)
-3. FL clients connect to FL server
-4. FL server coordinates training rounds:
-   a. Sends global model to clients
-   b. Clients train locally
-   c. Clients send updates back
-   d. Server aggregates updates (FedAvg)
-   e. Repeat for N rounds
-5. FL server reports metrics to backend
-6. Backend broadcasts updates via WebSocket
-7. Dashboard updates in real-time
-8. Admin can:
-   - Download trained models
-   - Run centralized comparison
-   - Configure new models
-   - Manage datasets
-```
+Unlike academic FL implementations, this is a **production-grade platform** with:
+- Multi-tenant project isolation
+- User authentication and authorization
+- Dynamic model code distribution
+- Template library system
+- Centralized baseline comparison
+- Comprehensive web dashboard
+- Desktop client application
+- Full Docker orchestration
 
 ---
 
 ## ✨ Key Features
 
-### Core Features
+### 🏗️ Project Management System
 
-#### 1. Federated Learning Training
-- **Algorithm**: Federated Averaging (FedAvg)
-- **Clients**: 3 independent hospital nodes
-- **Rounds**: Configurable (default: 20)
-- **Local Epochs**: 5 per round
-- **Privacy**: Zero raw data sharing
+- **Create FL Projects**: Define training objectives, model architecture, and dataset schema
+- **Model Templates**: Pre-built neural network architectures (or create custom ones)
+- **Project Isolation**: Each project has independent training sessions and configurations
+- **Schema Validation**: Automatic dataset validation against project requirements
 
-#### 2. Real-Time Monitoring Dashboard
-- **WebSocket Integration**: Live updates during training
-- **Metrics Visualization**:
-  - Accuracy vs Round (Line Chart)
-  - Loss vs Round (Line Chart)
-  - Client Participation (Bar Chart)
-- **Client Status**: Online/Offline indicators
-- **Progress Tracking**: Round counter and percentage bar
+### 🗳️ Democratic Strategy Voting
 
-#### 3. Training Mode Selection
-- **Federated Only**: Standard FL training
-- **Comparison Mode**: FL + Centralized comparison
-- **Admin Control**: Web-based mode selector
-- **Automated Workflow**: Seamless switching between modes
+- **Client Voting**: Hospitals vote on which FL algorithm to use (FedAvg vs FedProx)
+- **Tally System**: Real-time vote counting displayed on dashboard
+- **Dynamic Strategy**: FL server uses the winning strategy for training
+- **Fair Participation**: One vote per client per project
 
-#### 4. Centralized Training & Comparison
-- **Upload Dataset**: Admin uploads combined hospital data
-- **Train Centralized**: Runs on admin machine (100 epochs)
-- **Performance Comparison**:
-  - Side-by-side accuracy
-  - Side-by-side loss
-  - Performance difference metrics
-- **Visual Comparison**: Dedicated comparison tab
+### 👥 Multi-User Collaboration
 
-#### 5. Model Save & Download
-- **Server-Side Saving**: Automatic after training completion
-- **Client-Side Download**: Optional `--download-model` flag
-- **Admin Downloads**:
-  - Global Model (Federated) - `.pkl` format
-  - Centralized Model - `.h5` format
-- **Model Versioning**: Timestamped storage
+- **Three User Roles**:
+  - **Admin**: Full system access, can view all projects
+  - **Researcher**: Create projects, manage models, start training
+  - **Hospital**: Join projects, contribute data, vote on strategies
+- **JWT Authentication**: Secure token-based access control
+- **Session Persistence**: Automatic login state management
 
-#### 6. Dynamic Model Configuration
-- **Web-Based Editor**: Write TensorFlow/Keras code in browser
-- **Model Architecture**: Fully customizable
-- **Save & Apply**: Configuration stored in MySQL
-- **No Code Deployment**: Changes applied without redeploying
+### 📊 Real-Time Monitoring Dashboard
 
-#### 7. Dataset Management
-- **Upload Interface**: Drag-and-drop CSV files
-- **Dataset Validation**: Automatic shape and format checking
-- **Dataset Library**: View all uploaded datasets
-- **Statistics**: Rows, columns, size, creation date
+- **Live Metrics**: WebSocket updates during training (accuracy, loss, round progress)
+- **Client Status**: See which hospitals are online and participating
+- **Interactive Charts**: Recharts visualization of training convergence
+- **Multi-Tab Interface**: Dashboard, Analytics, Config, Comparison, Projects
 
-#### 8. Authentication & Authorization
-- **JWT-based**: Secure token authentication
-- **Session Management**: Persistent login
-- **Admin-Only Features**: Protected endpoints
-- **Logout**: Clean session termination
+### 🔬 Centralized Comparison Mode
 
-#### 9. Database Integration
-- **MySQL**: Production-grade database
-- **Async Operations**: Non-blocking database queries
-- **Real-Time Storage**: Metrics saved during training
-- **Foreign Keys**: Relational integrity
-- **Indexing**: Optimized queries
+- **Baseline Training**: Upload combined dataset for traditional centralized training
+- **Performance Comparison**: Side-by-side accuracy/loss comparison
+- **Training Time**: Measure centralized vs federated training duration
+- **Gap Analysis**: Quantify privacy-accuracy trade-off
 
-#### 10. Multi-Laptop Deployment
-- **Network Discovery**: Automatic IP configuration
-- **gRPC Communication**: Efficient binary protocol
-- **Fault Tolerance**: Handles client disconnections
-- **Scalability**: Supports N clients
+### 🖥️ Electron Desktop Client
+
+- **Hospital Interface**: User-friendly desktop app for participating institutions
+- **Project Browser**: Select from available FL projects
+- **CSV Upload**: Simple dataset selection and validation
+- **Training Logs**: Real-time Python subprocess output
+- **Cross-Platform**: Windows, macOS, Linux support
+
+### 🔄 Dynamic Model Distribution
+
+- **Code Download**: Clients fetch model architecture from API at runtime
+- **Version Control**: Database-stored model configurations
+- **Hot Updates**: Change model without redeploying clients
+- **Schema Matching**: Automatic feature count validation
+
+---
+
+## 🏗️ Architecture
+
+### High-Level System Design
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Web Dashboard (React)                        │
+│  ┌──────────┬──────────┬───────────┬──────────┬──────────┐     │
+│  │ Projects │Dashboard │ Analytics │  Config  │Comparison│     │
+│  └──────────┴──────────┴───────────┴──────────┴──────────┘     │
+└────────────────────┬────────────────────────────────────────────┘
+                     │ REST API + WebSocket (ws://)
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│              Backend Orchestrator (FastAPI)                      │
+│  • JWT Authentication        • Project Management               │
+│  • Training Coordination     • Model Template Library           │
+│  • Metrics Storage (MySQL)   • Strategy Vote Aggregation        │
+│  • WebSocket Broadcasting    • Configuration API                │
+└────────────────────┬────────────────────────────────────────────┘
+                     │ gRPC (Flower Protocol - 0.0.0.0:8080)
+                     ▼
+┌─────────────────────────────────────────────────────────────────┐
+│         Federated Learning Server (Flower + Polling)            │
+│  • Polls backend for training requests (3s interval)            │
+│  • Fetches project config from database                         │
+│  • Loads winning strategy (FedAvg/FedProx)                      │
+│  • Aggregates client updates                                    │
+│  • Reports metrics to backend                                   │
+│  • Saves global model to database                               │
+└─────────┬─────────┬─────────┬─────────┬─────────────────────────┘
+          │         │         │         │
+          ▼         ▼         ▼         ▼
+    ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+    │Hospital A│ │Hospital B│ │Hospital C│ │Hospital N│
+    │Electron  │ │Electron  │ │Electron  │ │Electron  │
+    │  Client  │ │  Client  │ │  Client  │ │  Client  │
+    └─────┬────┘ └─────┬────┘ └─────┬────┘ └─────┬────┘
+          │            │            │            │
+          ▼            ▼            ▼            ▼
+    ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+    │ Python   │ │ Python   │ │ Python   │ │ Python   │
+    │Subprocess│ │Subprocess│ │Subprocess│ │Subprocess│
+    │Universal │ │Universal │ │Universal │ │Universal │
+    │  Client  │ │  Client  │ │  Client  │ │  Client  │
+    │(Flower)  │ │(Flower)  │ │(Flower)  │ │(Flower)  │
+    └──────────┘ └──────────┘ └──────────┘ └──────────┘
+          │            │            │            │
+    Local CSV    Local CSV    Local CSV    Local CSV
+    Dataset      Dataset      Dataset      Dataset
+```
+
+### Component Interaction Flow
+
+1. **User Authentication**: Researcher/Hospital logs into web dashboard or Electron client
+2. **Project Creation**: Researcher creates FL project with model template and schema
+3. **Strategy Voting**: Hospitals vote on FedAvg or FedProx algorithm
+4. **Training Initiation**: Researcher starts training for specific project
+5. **FL Server Activation**: Polling loop detects training request, fetches config from DB
+6. **Client Connection**: Electron clients spawn Python subprocesses that connect via gRPC
+7. **Federated Training**:
+   - Round N: Server sends global model → Clients train locally → Send updates
+   - Server aggregates using voted strategy (FedAvg/FedProx)
+   - Reports metrics to backend → Backend broadcasts via WebSocket → Dashboard updates
+8. **Completion**: Global model saved to database, available for download
 
 ---
 
 ## 🛠️ Technology Stack
 
-### Backend
+### Backend Services
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **Python** | 3.8+ | Core programming language |
-| **FastAPI** | 0.109.0 | RESTful API framework |
-| **Flower** | 1.7.0 | Federated learning framework |
-| **TensorFlow** | 2.16.1 | Deep learning framework |
-| **aiomysql** | 0.2.0 | Async MySQL driver |
-| **PyJWT** | 2.8.0 | JWT authentication |
-| **Uvicorn** | 0.27.0 | ASGI server |
-
-### Frontend
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **React** | 18.2.0 | UI framework |
-| **Vite** | 5.0.8 | Build tool |
-| **Recharts** | 2.10.3 | Chart library |
-| **Tailwind CSS** | 3.4.0 | Styling framework |
-
-### Database
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **MySQL** | 8.0+ | Relational database |
-
-### Communication
-
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| **gRPC** | 1.60.0 | Client-server communication |
-| **WebSocket** | 12.0 | Real-time dashboard updates |
-| **HTTP/REST** | - | API endpoints |
+| Component | Technology | Version | Purpose |
+|-----------|-----------|---------|---------|
+| **API Framework** | FastAPI | 0.109.0 | RESTful API endpoints |
+| **ASGI Server** | Uvicorn | 0.27.0 | Production ASGI server |
+| **FL Framework** | Flower | 1.7.0 | Federated learning orchestration |
+| **Database** | MySQL | 8.0+ | Relational data storage |
+| **DB Driver** | aiomysql | 0.2.0 | Async MySQL connector |
+| **Authentication** | PyJWT | 2.8.0 | JWT token management |
+| **Password Hashing** | Passlib | 1.7.4 | bcrypt password security |
+| **WebSocket** | websockets | 12.0 | Real-time communication |
 
 ### Machine Learning
 
 | Library | Purpose |
 |---------|---------|
-| **NumPy** | Numerical computations |
-| **Pandas** | Data manipulation |
-| **scikit-learn** | Data preprocessing |
+| **TensorFlow** 2.16.1 | Deep learning framework |
+| **NumPy** 1.26.4 | Numerical computations |
+| **Pandas** 2.2.3 | Data manipulation |
+| **scikit-learn** 1.5.2 | Data preprocessing, metrics |
 
----
+### Frontend
 
-## 💻 System Requirements
+| Technology | Version | Purpose |
+|-----------|---------|---------|
+| **Framework** | React | 18.2.0 | UI library |
+| **Build Tool** | Vite | 5.0.8 | Fast dev server & bundler |
+| **Routing** | React Router | 6.x | Client-side routing |
+| **Styling** | Tailwind CSS | 3.4.0 | Utility-first CSS |
+| **Charts** | Recharts | 2.10.3 | Data visualization |
+| **HTTP Client** | Axios | 1.x | API requests |
 
-### Minimum Requirements (Single Machine Testing)
+### Desktop Client
 
-- **OS**: Windows 10/11, macOS 10.15+, or Linux (Ubuntu 20.04+)
-- **CPU**: Intel i5 or equivalent (4 cores)
-- **RAM**: 8 GB
-- **Storage**: 5 GB free space
-- **Network**: Localhost (127.0.0.1)
-- **Python**: 3.8 or higher
-- **Node.js**: 16.0 or higher
-- **MySQL**: 8.0 or higher
+| Component | Technology | Purpose |
+|-----------|-----------|---------|
+| **Framework** | Electron | 40.1.0 | Cross-platform desktop app |
+| **UI** | React + Vite | Same as web frontend |
+| **FL Client** | Python Subprocess | Runs universal_client.py |
+| **Communication** | IPC (Electron) | Main ↔ Renderer process |
 
-### Recommended Requirements (Multi-Laptop Deployment)
+### DevOps
 
-- **Machines**: 4 (1 server + 3 clients)
-- **OS**: Ubuntu 22.04 LTS or Windows 11
-- **CPU**: Intel i7 or equivalent (8 cores)
-- **RAM**: 16 GB per machine
-- **Storage**: 10 GB free space per machine
-- **Network**: 
-  - LAN: 1 Gbps Ethernet
-  - WiFi: 802.11ac (5 GHz)
-  - Firewall: Ports 8000, 8080 open
-
-### Software Dependencies
-
-```bash
-# Backend
-Python 3.8+
-pip 21.0+
-MySQL 8.0+
-
-# Frontend
-Node.js 16.0+
-npm 8.0+
-```
-
----
-
-## 📥 Installation
-
-### Prerequisites
-
-1. **Install Python 3.8+**
-   ```bash
-   # Ubuntu/Debian
-   sudo apt update
-   sudo apt install python3.8 python3-pip python3-venv
-   
-   # macOS (using Homebrew)
-   brew install python@3.8
-   
-   # Windows
-   # Download from https://www.python.org/downloads/
-   ```
-
-2. **Install Node.js 16+**
-   ```bash
-   # Ubuntu/Debian
-   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
-   sudo apt install -y nodejs
-   
-   # macOS (using Homebrew)
-   brew install node
-   
-   # Windows
-   # Download from https://nodejs.org/
-   ```
-
-3. **Install MySQL 8.0+**
-   ```bash
-   # Ubuntu/Debian
-   sudo apt install mysql-server
-   sudo mysql_secure_installation
-   
-   # macOS
-   brew install mysql
-   brew services start mysql
-   
-   # Windows
-   # Download from https://dev.mysql.com/downloads/installer/
-   ```
-
-### Step-by-Step Installation
-
-#### 1. Clone Repository
-
-```bash
-git clone https://github.com/yourusername/federated-learning-healthcare.git
-cd federated-learning-healthcare
-```
-
-#### 2. Backend Setup
-
-```bash
-# Navigate to backend directory
-cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# Linux/macOS:
-source venv/bin/activate
-# Windows:
-venv\Scripts\activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-#### 3. Database Setup
-
-```bash
-# Login to MySQL
-mysql -u root -p
-
-# Create database
-CREATE DATABASE FederatedLearning;
-
-# Create user (optional, for production)
-CREATE USER 'fl_admin'@'localhost' IDENTIFIED BY 'your_password';
-GRANT ALL PRIVILEGES ON FederatedLearning.* TO 'fl_admin'@'localhost';
-FLUSH PRIVILEGES;
-
-# Exit MySQL
-exit;
-```
-
-#### 4. Frontend Setup
-
-```bash
-# Navigate to frontend directory
-cd ../frontend
-
-# Install dependencies
-npm install
-
-# Build for production (optional)
-npm run build
-```
-
-#### 5. FL Server Setup
-
-```bash
-cd ../fl-server
-# Uses same virtual environment as backend
-```
-
-#### 6. FL Client Setup
-
-```bash
-cd ../fl-client
-# Uses same virtual environment as backend
-```
-
-#### 7. Data Preparation
-
-```bash
-# Create data directory
-mkdir -p fl-client/data
-
-# Generate sample datasets
-python scripts/generate_data.py
-
-# This creates:
-# - fl-client/data/hospital_a.csv
-# - fl-client/data/hospital_b.csv
-# - fl-client/data/hospital_c.csv
-```
+| Tool | Purpose |
+|------|---------|
+| **Docker** | Containerization |
+| **Docker Compose** | Multi-container orchestration |
+| **Nginx** | Frontend static file serving |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-federated-learning-healthcare/
+federated-learning-platform/
 │
-├── README.md                          # This file
-├── LICENSE                            # MIT License
-├── .gitignore                         # Git ignore rules
-│
-├── backend/                           # Backend API
-│   ├── main.py                        # FastAPI application
-│   ├── requirements.txt               # Python dependencies
-│   ├── .env                           # Environment variables (gitignored)
-│   ├── models/                        # Saved models directory
-│   ├── datasets/                      # Uploaded datasets directory
-│   └── configs/                       # Model configurations directory
+├── backend/                           # FastAPI Backend Service
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py                    # Application entry point
+│   │   ├── config.py                  # Environment configuration
+│   │   ├── database.py                # Database connection & schema
+│   │   ├── socket_manager.py          # WebSocket room management
+│   │   ├── models/
+│   │   │   ├── schemas.py             # Pydantic request/response models
+│   │   │   └── project.py             # Project-specific schemas
+│   │   ├── routers/
+│   │   │   ├── auth.py                # Login, register, JWT
+│   │   │   ├── projects.py            # CRUD for FL projects
+│   │   │   ├── training.py            # Start/stop, voting, centralized
+│   │   │   ├── metrics.py             # Training metrics reporting
+│   │   │   ├── clients.py             # Client registration
+│   │   │   └── models.py              # Model/template management
+│   │   └── services/
+│   │       ├── security.py            # Password hashing, JWT creation
+│   │       └── model_loader.py        # Dynamic model validation
+│   ├── models/                        # Saved global models (.pkl)
+│   ├── datasets/                      # Uploaded datasets
+│   ├── Dockerfile
+│   └── requirements.txt
 │
 ├── fl-server/                         # Federated Learning Server
-│   ├── server.py                      # Flower FL server
-│   └── config.yaml                    # Server configuration
+│   ├── dynamic_server.py              # Polling-based FL orchestrator
+│   ├── Dockerfile
+│   └── .env
 │
-├── fl-client/                         # Federated Learning Clients
-│   ├── client.py                      # Flower FL client
-│   ├── config.yaml                    # Client configuration
-│   ├── data/                          # Local hospital data
-│   │   ├── hospital_a.csv
-│   │   ├── hospital_b.csv
-│   │   └── hospital_c.csv
-│   └── client_models/                 # Downloaded models
-│       ├── hospital_a/
-│       ├── hospital_b/
-│       └── hospital_c/
-│
-├── frontend/                          # React Dashboard
+├── electron-client/                   # Desktop Application
+│   ├── main.js                        # Electron main process
+│   ├── electron/
+│   │   └── preload.js                 # IPC bridge (security)
+│   ├── python/
+│   │   ├── universal_client.py        # Flower FL client
+│   │   └── data/
+│   │       └── hospital_a.csv         # Sample dataset
 │   ├── src/
-│   │   ├── App.jsx                    # Main application component
-│   │   ├── main.jsx                   # Entry point
-│   │   ├── index.css                  # Global styles
-│   │   └── assets/                    # Static assets
-│   ├── public/
-│   ├── index.html                     # HTML template
-│   ├── package.json                   # Node dependencies
-│   ├── vite.config.js                 # Vite configuration
-│   ├── tailwind.config.js             # Tailwind CSS config
-│   └── postcss.config.js              # PostCSS config
+│   │   ├── App.jsx                    # Main React component
+│   │   └── App.css                    # Styles
+│   ├── package.json
+│   └── vite.config.js
 │
-├── scripts/                           # Utility scripts
-│   ├── generate_data.py               # Generate sample datasets
-│   ├── merge_datasets.py              # Merge for centralized training
-│   └── setup.sh                       # Automated setup script
+├── frontend/                          # Web Dashboard
+│   ├── src/
+│   │   ├── main.jsx                   # React entry point
+│   │   ├── App.jsx                    # Router & auth logic
+│   │   ├── pages/
+│   │   │   ├── Home.jsx               # Landing page
+│   │   │   ├── Login.jsx              # Authentication
+│   │   │   ├── Signup.jsx             # User registration
+│   │   │   └── Dashboard.jsx          # Main dashboard
+│   │   ├── components/
+│   │   │   ├── ProjectsPanel.jsx      # Project management UI
+│   │   │   ├── Charts.jsx             # Training visualizations
+│   │   │   ├── ClientList.jsx         # Connected hospitals
+│   │   │   ├── ComparisonPanel.jsx    # Centralized comparison
+│   │   │   ├── ConfigPanel.jsx        # Model/dataset management
+│   │   │   └── AnalyticsPanel.jsx     # Advanced metrics
+│   │   ├── hooks/
+│   │   │   ├── useProjects.js         # Project CRUD logic
+│   │   │   └── useTraining.js         # Training state & WebSocket
+│   │   ├── api/
+│   │   │   └── apiService.js          # Axios API wrapper
+│   │   └── index.css                  # Tailwind directives
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── package.json
 │
-├── docs/                              # Additional documentation
-│   ├── API.md                         # API documentation
-│   ├── DEPLOYMENT.md                  # Deployment guide
-│   ├── ARCHITECTURE.md                # Architecture details
-│   └── TROUBLESHOOTING.md             # Common issues
-│
-└── tests/                             # Test suite
-    ├── test_backend.py
-    ├── test_fl_server.py
-    ├── test_fl_client.py
-    └── test_integration.py
+├── docker-compose.yml                 # Orchestration config
+├── .env                               # Environment variables (gitignored)
+├── requirements.txt                   # Root Python dependencies
+└── README.md                          # This file
+```
+
+---
+
+## 💻 Prerequisites
+
+### System Requirements
+
+**Minimum (Single Machine Testing)**:
+- OS: Windows 10/11, macOS 12+, Ubuntu 20.04+
+- CPU: 4 cores
+- RAM: 8 GB
+- Storage: 5 GB free
+
+**Recommended (Multi-Node Deployment)**:
+- 4 Machines (1 server + 3 clients)
+- CPU: 8 cores per machine
+- RAM: 16 GB per machine
+- Network: 1 Gbps LAN or 802.11ac WiFi
+
+### Software Dependencies
+
+```bash
+# Backend & FL Server
+Python 3.9+
+pip 21.0+
+MySQL 8.0+
+
+# Frontend & Electron Client
+Node.js 18.0+
+npm 8.0+
+
+# Optional (for Docker deployment)
+Docker 20.10+
+Docker Compose 2.0+
+```
+
+---
+
+## 📥 Installation
+
+### Option 1: Docker Deployment (Recommended)
+
+**One-Command Setup**:
+
+```bash
+# 1. Clone repository
+git clone https://github.com/yourusername/federated-learning-platform.git
+cd federated-learning-platform
+
+# 2. Create environment file
+cat > .env << EOF
+# Database
+DB_HOST=db
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=your_secure_password
+DB_NAME=FederatedLearning
+
+# Backend
+SECRET_KEY=$(openssl rand -hex 32)
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+
+# Frontend
+VITE_API_BASE_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8000/ws
+EOF
+
+# 3. Start all services
+docker-compose up -d
+
+# 4. Verify deployment
+docker-compose ps
+```
+
+**Access Points**:
+- Frontend: http://localhost:5173
+- Backend API: http://localhost:8000
+- FL Server: localhost:8080 (gRPC)
+- MySQL: localhost:3307
+
+### Option 2: Manual Installation
+
+#### Step 1: Database Setup
+
+```bash
+# Install MySQL 8.0
+sudo apt install mysql-server  # Ubuntu/Debian
+brew install mysql             # macOS
+
+# Start MySQL service
+sudo systemctl start mysql     # Linux
+brew services start mysql      # macOS
+
+# Secure installation
+sudo mysql_secure_installation
+
+# Create database
+mysql -u root -p
+mysql> CREATE DATABASE FederatedLearning;
+mysql> CREATE USER 'fl_user'@'localhost' IDENTIFIED BY 'secure_password';
+mysql> GRANT ALL PRIVILEGES ON FederatedLearning.* TO 'fl_user'@'localhost';
+mysql> FLUSH PRIVILEGES;
+mysql> EXIT;
+```
+
+#### Step 2: Backend Setup
+
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate  # Linux/macOS
+venv\Scripts\activate     # Windows
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create .env file
+cat > .env << EOF
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_USER=fl_user
+DB_PASSWORD=secure_password
+DB_NAME=FederatedLearning
+SECRET_KEY=$(openssl rand -hex 32)
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
+EOF
+
+# Start backend (development mode)
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+#### Step 3: FL Server Setup
+
+```bash
+cd fl-server
+
+# Create .env file
+echo 'API_BASE=http://localhost:8000' > .env
+
+# Activate same virtual environment as backend
+source ../backend/venv/bin/activate
+
+# Start FL server
+python dynamic_server.py
+```
+
+#### Step 4: Frontend Setup
+
+```bash
+cd frontend
+
+# Install dependencies
+npm install
+
+# Create .env file
+cat > .env << EOF
+VITE_API_BASE_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8000/ws
+EOF
+
+# Start development server
+npm run dev
+```
+
+#### Step 5: Electron Client Setup
+
+```bash
+cd electron-client
+
+# Install dependencies
+npm install
+
+# Start Electron app
+npm run dev
 ```
 
 ---
 
 ## ⚙️ Configuration
 
-### Backend Configuration
+### Backend Environment Variables
 
-Edit `backend/.env`:
+```bash
+# backend/.env
 
-```env
-# Database Configuration
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_USER=root
-DB_PASSWORD=your_password
-DB_NAME=FederatedLearning
+# Database Connection
+DB_HOST=127.0.0.1           # MySQL host
+DB_PORT=3306                # MySQL port
+DB_USER=root                # Database user
+DB_PASSWORD=your_password   # Database password
+DB_NAME=FederatedLearning   # Database name
 
-# JWT Configuration
-SECRET_KEY=your-secret-key-change-in-production
+# Authentication
+SECRET_KEY=your-secret-key-minimum-32-chars
 ALGORITHM=HS256
-ACCESS_TOKEN_EXPIRE_MINUTES=60
+ACCESS_TOKEN_EXPIRE_MINUTES=1440  # 24 hours
 
-# CORS Configuration
-CORS_ORIGINS=["http://localhost:3000", "http://localhost:5173"]
+# CORS (Allowed Origins)
+VITE_API_URL=http://localhost:5173
+```
 
-# Server Configuration
-API_HOST=0.0.0.0
-API_PORT=8000
+### Frontend Environment Variables
+
+```bash
+# frontend/.env
+
+VITE_API_BASE_URL=http://localhost:8000
+VITE_WS_URL=ws://localhost:8000/ws
 ```
 
 ### FL Server Configuration
 
-Edit `fl-server/config.yaml`:
+```bash
+# fl-server/.env
+
+API_BASE=http://localhost:8000  # Backend API URL
+```
+
+### Docker Compose Override (Optional)
+
+For production deployment with custom ports:
 
 ```yaml
-server:
-  address: "0.0.0.0:8080"
-  num_rounds: 20
-  
-strategy:
-  name: "FedAvg"
-  fraction_fit: 1.0
-  fraction_evaluate: 1.0
-  min_fit_clients: 3
-  min_evaluate_clients: 3
-  min_available_clients: 3
+# docker-compose.override.yml
 
-backend:
-  url: "http://localhost:8000"
-```
+version: '3.8'
 
-### FL Client Configuration
+services:
+  backend:
+    environment:
+      - DB_HOST=your-production-db-host
+    ports:
+      - "8080:8000"  # Custom port mapping
 
-Edit `fl-client/config.yaml`:
-
-```yaml
-server:
-  address: "localhost:8080"
-
-client:
-  local_epochs: 5
-  batch_size: 32
-  learning_rate: 0.001
-
-data:
-  validation_split: 0.1
-  shuffle: true
-```
-
-### Frontend Configuration
-
-Edit `frontend/src/App.jsx`:
-
-```javascript
-const API_BASE = 'http://localhost:8000';  // Backend URL
-const WS_URL = 'ws://localhost:8000/ws';   // WebSocket URL
-```
-
-For production:
-
-```javascript
-const API_BASE = 'https://your-backend.com';
-const WS_URL = 'wss://your-backend.com/ws';
+  frontend:
+    ports:
+      - "80:80"      # Production HTTP port
 ```
 
 ---
 
 ## 🚀 Usage Guide
 
-### Quick Start (Single Machine)
+### 1. Initial Setup (First Time)
 
-#### Terminal 1: Start Backend
+#### Create Admin Account (Already Exists)
 
-```bash
-cd backend
-source venv/bin/activate  # Windows: venv\Scripts\activate
-python main.py
-```
+Default credentials are pre-loaded:
+- **Email**: admin@fedapp.me
+- **Password**: admin123 (bcrypt hashed in database)
 
-**Expected Output:**
-```
-✓ Database initialized and connected via aiomysql
-INFO:     Started server process [12345]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000
-```
+#### Create Additional Users
 
-#### Terminal 2: Start FL Server
+Via Web Dashboard Signup Page:
 
-```bash
-cd fl-server
-source venv/bin/activate
-python server.py
-```
+1. Navigate to http://localhost:5173/signup
+2. Fill in user details
+3. Select role: **Hospital** or **Researcher**
+4. Click "Sign Up"
 
-**Expected Output:**
-```
-✓ Notified backend: Training starting
-==================================================
-🚀 Federated Learning Server Starting
-==================================================
-Configuration:
-  - Min clients: 3
-  - Strategy: FedAvg
-  - Server address: 0.0.0.0:8080
-  - Backend API: http://localhost:8000
-  - Model saving: Enabled
-==================================================
+**Note**: Admin role cannot be created via signup (security restriction)
 
-INFO flower 2024-01-15 10:00:00,000 | app.py:163 | Starting Flower server, config: ...
-```
+### 2. Create Federated Learning Project
 
-#### Terminal 3-5: Start FL Clients
+#### As a Researcher:
 
-```bash
-# Terminal 3: Hospital A
-cd fl-client
-source venv/bin/activate
-python client.py --client-id hospital_a --data-path data/hospital_a.csv --download-model
-```
+1. **Login** to web dashboard (http://localhost:5173/login)
+2. Navigate to **"Projects"** tab
+3. Click **"+ New Project"**
+4. Fill in project details:
 
-```bash
-# Terminal 4: Hospital B
-python client.py --client-id hospital_b --data-path data/hospital_b.csv --download-model
-```
-
-```bash
-# Terminal 5: Hospital C
-python client.py --client-id hospital_c --data-path data/hospital_c.csv --download-model
-```
-
-**Expected Output (per client):**
-```
-============================================================
-🏥 Federated Learning Client: hospital_a
-============================================================
-Loading data from data/hospital_a.csv...
-✓ Data loaded: 142 train, 36 test samples
-Creating local model...
-Connecting to FL server at localhost:8080...
-============================================================
-
-✓ Registered with backend
-```
-
-#### Terminal 6: Start Frontend
-
-```bash
-cd frontend
-npm run dev
-```
-
-**Expected Output:**
-```
-VITE v5.0.8  ready in 500 ms
-
-  ➜  Local:   http://localhost:3000/
-  ➜  Network: use --host to expose
-  ➜  press h + enter to show help
-```
-
-### Multi-Laptop Deployment
-
-#### Server Machine (Laptop 1)
-
-**Find Your IP Address:**
-```bash
-# Linux/macOS
-ifconfig | grep "inet "
-
-# Windows
-ipconfig
-```
-
-Example output: `192.168.1.100`
-
-**Start Backend & FL Server:**
-```bash
-# Terminal 1: Backend
-python backend/main.py
-
-# Terminal 2: FL Server
-python fl-server/server.py
-
-# Terminal 3: Frontend
-cd frontend && npm run dev
-```
-
-#### Client Machines (Laptops 2, 3, 4)
-
-**Update Client Configuration:**
-
-Edit `fl-client/config.yaml`:
 ```yaml
-server:
-  address: "192.168.1.100:8080"  # Server's IP
+Project Name: Diabetes Risk Prediction
+Description: Multi-hospital diabetes classification model
+Target Column: Outcome
+CSV Schema: Pregnancies,Glucose,BloodPressure,SkinThickness,Insulin,BMI,DiabetesPedigreeFunction,Age,Outcome
+Rounds: 20
+Min Clients: 3
+Local Epochs: 5
+Batch Size: 32
 ```
 
-**Start Client:**
-```bash
-cd fl-client
-python client.py --client-id hospital_a --data-path data/hospital_a.csv --server 192.168.1.100:8080 --download-model
+5. **Select Model Template**:
+   - Choose from pre-built templates (e.g., "Basic Neural Network")
+   - OR select "✨ Custom Model Code" to write your own
+
+6. Click **"Create Project"**
+
+#### Custom Model Code Example:
+
+```python
+def create_model(input_shape):
+    import tensorflow as tf
+    
+    model = tf.keras.Sequential([
+        tf.keras.layers.Dense(64, activation='relu', input_shape=(input_shape,)),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(32, activation='relu'),
+        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dense(1, activation='sigmoid')
+    ])
+    
+    model.compile(
+        optimizer='adam',
+        loss='binary_crossentropy',
+        metrics=['accuracy']
+    )
+    
+    return model
 ```
 
-### Dashboard Usage
+### 3. Hospital Participation
 
-#### 1. Login
+#### Via Electron Client:
 
-1. Open browser: `http://localhost:3000`
-2. Enter credentials:
-   - Username: `admin`
-   - Password: `admin123`
-3. Click "Login"
+1. **Download** Electron Client (.exe for Windows)
+2. **Launch** application
+3. **Login** with hospital credentials
+4. **Project Browser**:
+   - View available projects
+   - See project details (rounds, min clients, schema)
+5. **Select Project** to join
+6. **Vote for Strategy**:
+   - Click "FedAvg" or "FedProx"
+   - Vote status appears below buttons
+7. **Upload Dataset**:
+   - Click "Browse" button
+   - Select CSV file matching project schema
+   - Validation occurs automatically
+8. **Wait for Training** to start (initiated by researcher)
 
-#### 2. Dashboard Tab
+### 4. Start Federated Training
 
-**Monitor Training:**
-- View client status (Online/Offline)
-- Select training mode (Federated / Comparison)
-- Start training when 3 clients are online
-- Watch real-time metrics:
-  - Current round
-  - Accuracy progress
-  - Loss convergence
-  - Client participation
+#### As a Researcher (via Web Dashboard):
 
-**Training Controls:**
-1. Select mode from dropdown
-2. Wait for "3/3 ✓" clients
-3. Click "🚀 Start Training"
-4. Monitor progress bar (0% → 100%)
-5. View live charts updating
+1. **Navigate to Projects Tab**
+2. **Verify Readiness**:
+   - Check "Dashboard" tab to see connected clients
+   - Minimum required clients must be online
+3. **Click "Start Federated Training"** on desired project card
+4. **Monitor Progress**:
+   - Switch to "Dashboard" tab
+   - Watch real-time metrics (accuracy, loss)
+   - See client participation status
 
-#### 3. Comparison Tab
+### 5. Training Monitoring
 
-**Run Centralized Training:**
-1. Wait for FL training to complete
-2. Navigate to "Comparison" tab
-3. Upload combined dataset:
-   ```bash
-   # First, merge datasets
-   python scripts/merge_datasets.py
-   ```
-4. Click "Choose File" → select `combined_dataset.csv`
-5. Click "🚀 Run Centralized Training"
-6. Wait for completion (~1-2 minutes)
-7. View comparison results:
-   - Federated accuracy vs Centralized accuracy
+#### Real-Time Dashboard Features:
+
+**Dashboard Tab**:
+- **Accuracy Chart**: Line graph showing model accuracy per round
+- **Loss Chart**: Loss reduction over training rounds
+- **Client Status**: Online/offline indicators for each hospital
+- **Progress Bar**: Current round / total rounds
+
+**Analytics Tab**:
+- **Peak Accuracy**: Highest accuracy achieved
+- **Final Loss**: Convergence metric
+- **Total Rounds**: Training duration
+- **Client Stability**: Participation consistency chart
+
+### 6. Centralized Comparison (Optional)
+
+To benchmark federated performance:
+
+1. **Navigate to "Comparison" Tab**
+2. **Prepare Combined Dataset**:
+   - Merge all hospital CSVs locally (violates privacy in real scenario)
+3. **Upload Dataset**:
+   - Click "Choose File"
+   - Select combined CSV
+4. **Click "Run Training"**
+5. **View Results**:
+   - Side-by-side accuracy comparison
    - Loss comparison
-   - Performance difference
+   - Training time difference
+   - Accuracy gap analysis
 
-**Interpreting Results:**
-```
-Federated Learning:     78.5% accuracy, 0.45 loss
-Centralized Learning:   82.3% accuracy, 0.38 loss
-Difference:             +3.8% accuracy (centralized better)
+### 7. Model Download & Deployment
 
-Explanation: Centralized has access to ALL data,
-so it typically performs 2-5% better than federated.
-The small gap shows FL is effective!
-```
+#### Download Trained Models:
 
-#### 4. Config Tab
-
-**Change Model Architecture:**
+**Web Dashboard**:
 1. Navigate to "Config" tab
-2. Paste TensorFlow/Keras code:
-   ```python
-   model = tf.keras.Sequential([
-       tf.keras.layers.Dense(128, activation='relu', input_shape=(input_shape,)),
-       tf.keras.layers.Dropout(0.3),
-       tf.keras.layers.Dense(64, activation='relu'),
-       tf.keras.layers.Dropout(0.3),
-       tf.keras.layers.Dense(32, activation='relu'),
-       tf.keras.layers.Dense(1, activation='sigmoid')
-   ])
-   
-   model.compile(
-       optimizer='adam',
-       loss='binary_crossentropy',
-       metrics=['accuracy']
-   )
-   ```
-3. Click "💾 Save Model Configuration"
-4. Restart FL server to apply changes
+2. Under "Global Models" section
+3. Click on desired model filename
+4. Model downloads as `.pkl` (global) or `.h5` (centralized)
 
-**Upload New Dataset:**
-1. Prepare CSV file with:
-   - Features in columns (numeric)
-   - Target in last column (0 or 1)
-2. Click "Choose File"
-3. Select your CSV
-4. Click "📤 Upload Dataset"
-5. View confirmation with dataset statistics
+**Electron Client** (if `--download-model` flag used):
+- Models saved to: `electron-client/python/client_models/<client_id>/`
 
-#### 5. Models Tab
+#### Deploy Model for Inference:
 
-**Download Trained Models:**
-1. Navigate to "Models" tab
-2. Click "⬇️ Download Global Model" (Federated)
-   - Format: `.pkl` (pickle file)
-   - Contains: Model weights as NumPy arrays
-3. Click "⬇️ Download Centralized Model"
-   - Format: `.h5` (Keras HDF5 file)
-   - Contains: Complete Keras model
+```python
+import pickle
+import numpy as np
 
-**View Model History:**
-- See all saved models
-- Check creation timestamps
-- View file sizes
-- Identify model types (global/centralized)
+# Load global model
+with open('global_model_1234567890.pkl', 'rb') as f:
+    weights = pickle.load(f)
+
+# Reconstruct model architecture (must match training)
+import tensorflow as tf
+
+model = tf.keras.Sequential([
+    tf.keras.layers.Dense(64, activation='relu', input_shape=(8,)),
+    tf.keras.layers.Dropout(0.2),
+    tf.keras.layers.Dense(32, activation='relu'),
+    tf.keras.layers.Dropout(0.2),
+    tf.keras.layers.Dense(1, activation='sigmoid')
+])
+
+model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+# Set weights
+model.set_weights(weights)
+
+# Perform inference
+sample_data = np.array([[2, 120, 70, 20, 85, 33.6, 0.627, 50]])
+prediction = model.predict(sample_data)
+print(f"Diabetes Risk: {prediction[0][0]:.2%}")
+```
 
 ---
 
@@ -856,54 +749,210 @@ The small gap shows FL is effective!
 
 ### Authentication Endpoints
 
-#### `POST /api/auth/login`
+#### `POST /api/auth/register`
 
-Login to the system.
+Create new user account.
 
-**Request:**
+**Request Body**:
 ```json
 {
-  "username": "admin",
+  "email": "hospital1@example.com",
+  "password": "SecurePass123!",
+  "full_name": "City General Hospital",
+  "role": "hospital"
+}
+```
+
+**Response** (201):
+```json
+{
+  "id": 5,
+  "email": "hospital1@example.com",
+  "full_name": "City General Hospital",
+  "role": "hospital"
+}
+```
+
+#### `POST /api/auth/login`
+
+Authenticate and receive JWT token.
+
+**Request Body**:
+```json
+{
+  "username": "admin@fedapp.me",
   "password": "admin123"
 }
 ```
 
-**Response:**
+**Response** (200):
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "token_type": "bearer"
+  "token_type": "bearer",
+  "user": {
+    "id": 1,
+    "email": "admin@fedapp.me",
+    "full_name": "Super Admin",
+    "role": "admin"
+  }
 }
 ```
 
-**Status Codes:**
-- `200`: Success
-- `401`: Invalid credentials
+### Project Management Endpoints
 
----
+#### `POST /api/projects/`
 
-### Training Endpoints
+Create new FL project.
 
-#### `POST /api/training/start`
+**Headers**: `Authorization: Bearer <token>`
 
-Start a new federated training session.
-
-**Response:**
+**Request Body**:
 ```json
 {
-  "status": "started",
-  "session_id": 42
+  "name": "Diabetes Prediction",
+  "description": "Multi-hospital diabetes classification",
+  "model_code": "def create_model(input_shape): ...",
+  "csv_schema": "Pregnancies,Glucose,BloodPressure,SkinThickness,Insulin,BMI,DiabetesPedigreeFunction,Age,Outcome",
+  "target_column": "Outcome",
+  "num_rounds": 20,
+  "local_epochs": 5,
+  "batch_size": 32,
+  "min_clients": 3
 }
 ```
 
-#### `POST /api/training/complete`
-
-Mark training session as complete.
-
-**Response:**
+**Response** (200):
 ```json
 {
-  "status": "completed"
+  "status": "success",
+  "project_id": 7,
+  "message": "Project 'Diabetes Prediction' created with ID 7"
+}
+```
+
+#### `GET /api/projects/`
+
+List all projects (admin sees all, researchers see own).
+
+**Headers**: `Authorization: Bearer <token>`
+
+**Response** (200):
+```json
+{
+  "projects": [
+    {
+      "id": 7,
+      "name": "Diabetes Prediction",
+      "description": "Multi-hospital diabetes classification",
+      "status": "draft",
+      "current_round": 0,
+      "num_rounds": 20,
+      "total_clients": 0,
+      "created_at": "2026-02-17T10:30:00"
+    }
+  ]
+}
+```
+
+#### `GET /api/projects/{project_id}`
+
+Get detailed project information.
+
+**Response** (200):
+```json
+{
+  "project": {
+    "id": 7,
+    "name": "Diabetes Prediction",
+    "description": "Multi-hospital diabetes classification",
+    "model_code": "def create_model(input_shape): ...",
+    "csv_schema": "Pregnancies,Glucose,...,Outcome",
+    "target_column": "Outcome",
+    "num_rounds": 20,
+    "local_epochs": 5,
+    "batch_size": 32,
+    "min_clients": 3,
+    "status": "draft"
+  }
+}
+```
+
+#### `GET /api/projects/{project_id}/model-code`
+
+Public endpoint for clients to download model code and schema.
+
+**Response** (200):
+```json
+{
+  "model_code": "def create_model(input_shape): ...",
+  "csv_schema": ["Pregnancies", "Glucose", "BloodPressure", ...],
+  "expected_features": 8,
+  "target_column": "Outcome"
+}
+```
+
+### Training Control Endpoints
+
+#### `POST /api/training/vote`
+
+Cast vote for FL strategy (FedAvg or FedProx).
+
+**Request Body**:
+```json
+{
+  "project_id": 7,
+  "client_id": "hospital_a",
+  "strategy": "FedAvg"
+}
+```
+
+**Response** (200):
+```json
+{
+  "status": "voted",
+  "tally": {
+    "FedAvg": 2,
+    "FedProx": 1
+  }
+}
+```
+
+#### `GET /api/training/strategy/final/{project_id}`
+
+Get winning strategy after voting.
+
+**Response** (200):
+```json
+{
+  "strategy": "FedAvg"
+}
+```
+
+#### `POST /api/training/start?project_id={id}`
+
+Initiate federated training session.
+
+**Headers**: `Authorization: Bearer <token>`
+
+**Response** (200):
+```json
+{
+  "status": "training",
+  "strategy": "FedAvg",
+  "session_id": 15,
+  "project_id": 7
+}
+```
+
+#### `POST /api/training/stop`
+
+Force stop current training session.
+
+**Response** (200):
+```json
+{
+  "status": "cancelled"
 }
 ```
 
@@ -911,154 +960,76 @@ Mark training session as complete.
 
 Get current training status.
 
-**Response:**
+**Response** (200):
 ```json
 {
-  "is_training": true,
-  "session_id": 42,
-  "current_round": 15,
-  "total_rounds": 20,
-  "started_at": "2024-01-15T10:00:00"
+  "status": "training",
+  "session_id": 15,
+  "strategy": "FedAvg",
+  "project_id": 7
 }
 ```
-
-#### `POST /api/training/mode`
-
-Set training mode.
-
-**Request:**
-```json
-{
-  "mode": "comparison",
-  "dataset_file": "combined.csv"
-}
-```
-
-**Response:**
-```json
-{
-  "status": "success",
-  "mode": "comparison",
-  "message": "Training mode set to comparison"
-}
-```
-
-#### `POST /api/training/centralized`
-
-Run centralized training.
-
-**Request:** `multipart/form-data`
-- `dataset_file`: CSV file
-
-**Response:**
-```json
-{
-  "status": "success",
-  "accuracy": 0.823,
-  "loss": 0.38,
-  "training_time": 45.2,
-  "model_path": "models/centralized_1234567890.h5"
-}
-```
-
-#### `GET /api/training/comparison`
-
-Get comparison results.
-
-**Response:**
-```json
-{
-  "federated": {
-    "accuracy": 0.785,
-    "loss": 0.45
-  },
-  "centralized": {
-    "accuracy": 0.823,
-    "loss": 0.38,
-    "training_time": 45.2
-  },
-  "comparison": {
-    "accuracy_diff": 0.038,
-    "loss_diff": -0.07
-  }
-}
-```
-
----
 
 ### Metrics Endpoints
 
 #### `POST /api/training/metrics`
 
-Report training metrics (called by FL server).
+Report metrics (called by FL server each round).
 
-**Request:**
+**Request Body**:
 ```json
 {
-  "round": 15,
+  "round": 10,
   "num_clients": 3,
-  "accuracy": 0.78,
-  "loss": 0.45,
+  "accuracy": 0.823,
+  "loss": 0.412,
   "client_metrics": {
-    "client_0": {"accuracy": 0.77, "loss": 0.46},
-    "client_1": {"accuracy": 0.79, "loss": 0.44},
-    "client_2": {"accuracy": 0.78, "loss": 0.45}
+    "accuracies": [0.81, 0.84, 0.82]
   },
-  "timestamp": "2024-01-15T10:30:00"
+  "timestamp": "2026-02-17T14:35:22"
 }
 ```
 
-**Response:**
+**Response** (200):
 ```json
 {
   "status": "received"
 }
 ```
 
-#### `GET /api/metrics`
+#### `GET /api/metrics/latest`
 
-Get all training metrics.
+Get metrics for most recent training session.
 
-**Query Parameters:**
-- `session_id` (optional): Filter by session
-
-**Response:**
+**Response** (200):
 ```json
 {
   "metrics": [
     {
       "round": 1,
-      "accuracy": 0.65,
-      "loss": 0.58,
+      "accuracy": 0.651,
+      "loss": 0.589,
       "num_clients": 3,
-      "timestamp": "2024-01-15T10:05:00"
+      "timestamp": "2026-02-17T14:30:00"
     },
     {
       "round": 2,
-      "accuracy": 0.68,
-      "loss": 0.55,
+      "accuracy": 0.698,
+      "loss": 0.542,
       "num_clients": 3,
-      "timestamp": "2024-01-15T10:06:30"
+      "timestamp": "2026-02-17T14:31:15"
     }
   ]
 }
 ```
 
-#### `GET /api/metrics/latest`
-
-Get metrics for the latest session.
-
-**Response:** Same format as `/api/metrics`
-
----
-
-### Client Endpoints
+### Client Management
 
 #### `POST /api/clients/register`
 
-Register a new FL client.
+Register FL client connection.
 
-**Request:**
+**Request Body**:
 ```json
 {
   "client_id": "hospital_a",
@@ -1066,219 +1037,144 @@ Register a new FL client.
 }
 ```
 
-**Response:**
+**Response** (200):
 ```json
 {
   "status": "registered"
 }
 ```
 
-#### `GET /api/clients`
+#### `GET /api/clients/`
 
-Get all registered clients.
+List all registered clients.
 
-**Response:**
+**Response** (200):
 ```json
 {
   "clients": [
     {
       "client_id": "hospital_a",
       "status": "online",
-      "last_seen": "2024-01-15T10:30:00",
+      "last_seen": "2026-02-17T14:35:00",
       "total_samples": 178
-    },
-    {
-      "client_id": "hospital_b",
-      "status": "online",
-      "last_seen": "2024-01-15T10:30:00",
-      "total_samples": 165
     }
   ]
 }
 ```
 
----
+### Model Template Endpoints
 
-### Model Endpoints
+#### `GET /api/models/templates`
 
-#### `POST /api/model/save`
+List available model templates.
 
-Save global model weights.
+**Headers**: `Authorization: Bearer <token>`
 
-**Request:**
+**Response** (200):
 ```json
 {
-  "weights": [[0.1, 0.2], [0.3, 0.4]],
-  "timestamp": "2024-01-15T10:45:00"
-}
-```
-
-**Response:**
-```json
-{
-  "status": "success",
-  "model_path": "models/global_model_1234567890.pkl",
-  "timestamp": 1234567890
-}
-```
-
-#### `GET /api/model/download/global`
-
-Download latest global model.
-
-**Response:** Binary file download (`.pkl`)
-
-#### `GET /api/model/download/centralized`
-
-Download latest centralized model.
-
-**Response:** Binary file download (`.h5`)
-
-#### `GET /api/models/list`
-
-List all saved models.
-
-**Response:**
-```json
-{
-  "models": [
+  "templates": [
     {
-      "filename": "global_model_1234567890.pkl",
-      "size": 87654,
-      "created": "2024-01-15T10:45:00",
-      "type": "global"
-    },
-    {
-      "filename": "centralized_1234567890.h5",
-      "size": 124567,
-      "created": "2024-01-15T11:00:00",
-      "type": "centralized"
+      "id": 1,
+      "name": "Basic Neural Network",
+      "description": "2-layer dense network with dropout",
+      "code": "def create_model(input_shape): ..."
     }
   ]
 }
 ```
 
----
+#### `POST /api/models/templates`
 
-### Configuration Endpoints
+Create custom model template.
 
-#### `POST /api/config/model`
+**Headers**: `Authorization: Bearer <token>`
 
-Save model configuration.
-
-**Request:**
+**Request Body**:
 ```json
 {
-  "model_code": "model = tf.keras.Sequential([...])",
-  "dataset_path": "custom_dataset.csv"
+  "name": "Advanced CNN",
+  "description": "Convolutional network for image data",
+  "model_code": "def create_model(input_shape): ..."
 }
 ```
 
-**Response:**
-```json
-{
-  "status": "success",
-  "message": "Model configuration saved"
-}
-```
-
-#### `GET /api/config/model`
-
-Get active model configuration.
-
-**Response:**
-```json
-{
-  "model_code": "model = tf.keras.Sequential([...])",
-  "dataset_path": "custom_dataset.csv"
-}
-```
-
-#### `POST /api/config/dataset`
-
-Upload new dataset.
-
-**Request:** `multipart/form-data`
-- `file`: CSV file
-
-**Response:**
+**Response** (200):
 ```json
 {
   "status": "success",
-  "filename": "new_dataset.csv",
-  "path": "datasets/new_dataset.csv",
-  "rows": 500,
-  "columns": 11,
-  "column_names": ["age", "bmi", "glucose", ..., "target"]
+  "id": 5,
+  "message": "Template saved"
 }
 ```
-
-#### `GET /api/datasets/list`
-
-List all uploaded datasets.
-
-**Response:**
-```json
-{
-  "datasets": [
-    {
-      "filename": "hospital_a.csv",
-      "path": "datasets/hospital_a.csv",
-      "rows": 178,
-      "columns": 11,
-      "size": 15234,
-      "created": "2024-01-15T09:00:00"
-    }
-  ]
-}
-```
-
----
 
 ### WebSocket Endpoint
 
-#### `WS /ws`
+#### `WS /ws?project_id={id}`
 
-Real-time updates via WebSocket.
+Real-time training updates.
 
-**Connection:**
+**Connection**:
 ```javascript
-const ws = new WebSocket('ws://localhost:8000/ws');
+const ws = new WebSocket('ws://localhost:8000/ws?project_id=7');
+
+ws.onmessage = (event) => {
+  const msg = JSON.parse(event.data);
+  
+  switch (msg.type) {
+    case 'training_started':
+      console.log(`Session ${msg.session_id} started`);
+      break;
+    
+    case 'metrics_update':
+      console.log(`Round ${msg.data.round}: Acc ${msg.data.accuracy}`);
+      break;
+    
+    case 'training_completed':
+      console.log('Training finished!');
+      break;
+    
+    case 'vote_update':
+      console.log('Vote tally:', msg.tally);
+      break;
+  }
+};
 ```
 
-**Message Types:**
+**Message Types**:
 
-**1. Training Started:**
+1. **training_started**:
 ```json
 {
   "type": "training_started",
-  "session_id": 42,
-  "timestamp": "2024-01-15T10:00:00"
+  "session_id": 15,
+  "strategy": "FedAvg",
+  "project_id": 7
 }
 ```
 
-**2. Training Completed:**
-```json
-{
-  "type": "training_completed",
-  "timestamp": "2024-01-15T10:45:00"
-}
-```
-
-**3. Metrics Update:**
+2. **metrics_update**:
 ```json
 {
   "type": "metrics_update",
   "data": {
-    "round": 15,
-    "accuracy": 0.78,
-    "loss": 0.45,
+    "round": 10,
+    "accuracy": 0.823,
+    "loss": 0.412,
     "num_clients": 3
   }
 }
 ```
 
-**4. Client Registered:**
+3. **training_completed**:
+```json
+{
+  "type": "training_completed",
+  "timestamp": "2026-02-17T15:00:00"
+}
+```
+
+4. **client_registered**:
 ```json
 {
   "type": "client_registered",
@@ -1286,305 +1182,394 @@ const ws = new WebSocket('ws://localhost:8000/ws');
 }
 ```
 
-**5. Centralized Complete:**
+5. **vote_update**:
 ```json
 {
-  "type": "centralized_complete",
-  "data": {
-    "accuracy": 0.823,
-    "loss": 0.38,
-    "training_time": 45.2
+  "type": "vote_update",
+  "tally": {
+    "FedAvg": 2,
+    "FedProx": 1
   }
 }
 ```
 
 ---
 
-## 🔄 Federated Learning Process
+## 🐳 Deployment
 
-### Round-by-Round Workflow
+### Production Deployment with Docker
 
-#### Round N (e.g., Round 1 of 20):
+#### Step 1: Environment Configuration
 
-```
-1. FL Server → Clients: Send global model weights
-   ├─> Hospital A receives weights
-   ├─> Hospital B receives weights
-   └─> Hospital C receives weights
+```bash
+# Create production .env file
+cat > .env << EOF
+# Database
+DB_HOST=db
+DB_PORT=3306
+DB_USER=root
+DB_PASSWORD=$(openssl rand -base64 32)
+DB_NAME=FederatedLearning
 
-2. Clients → Local Training (5 epochs each)
-   ├─> Hospital A trains on 178 samples
-   │   └─> Local accuracy: 0.72, loss: 0.51
-   ├─> Hospital B trains on 165 samples
-   │   └─> Local accuracy: 0.74, loss: 0.49
-   └─> Hospital C trains on 145 samples
-       └─> Local accuracy: 0.71, loss: 0.52
+# Backend Security
+SECRET_KEY=$(openssl rand -hex 32)
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=1440
 
-3. Clients → FL Server: Send updated weights
-   ├─> Hospital A sends Δw_A
-   ├─> Hospital B sends Δw_B
-   └─> Hospital C sends Δw_C
+# Frontend
+VITE_API_BASE_URL=https://your-domain.com
+VITE_WS_URL=wss://your-domain.com/ws
 
-4. FL Server: Aggregate weights (FedAvg)
-   w_global = (n_A × w_A + n_B × w_B + n_C × w_C) / (n_A + n_B + n_C)
-   where n_i = number of samples at client i
-
-5. FL Server → Backend: Report metrics
-   ├─> Round: 1
-   ├─> Avg Accuracy: 0.723
-   ├─> Avg Loss: 0.507
-   └─> Num Clients: 3
-
-6. Backend → Dashboard: Broadcast via WebSocket
-   └─> Dashboard updates graphs in real-time
-
-7. Repeat for next round with new global model
+# FL Server
+API_BASE=http://backend:8000
+EOF
 ```
 
-### Mathematical Details
+#### Step 2: Build & Deploy
 
-#### FedAvg Algorithm:
+```bash
+# Build all images
+docker-compose build
 
-```
-Initialize global model w_0
+# Start in detached mode
+docker-compose up -d
 
-For each round t = 1, 2, ..., T:
-  
-  1. Server sends w_t to all K clients
-  
-  2. Each client k ∈ [1, K]:
-     - Trains locally for E epochs on local dataset D_k
-     - Obtains updated weights w_k^(t+1)
-     - Computes weight update Δw_k = w_k^(t+1) - w_t
-  
-  3. Server aggregates:
-     w_(t+1) = Σ(k=1 to K) [n_k / n × w_k^(t+1)]
-     
-     where:
-     - n_k = size of dataset D_k
-     - n = Σ(k=1 to K) n_k (total samples)
-  
-  4. Update global model w_t = w_(t+1)
+# View logs
+docker-compose logs -f
 
-Return final model w_T
+# Check service health
+docker-compose ps
 ```
 
-### Communication Overhead
+#### Step 3: SSL/TLS Configuration (Production)
 
-**Per Round:**
-- Uplink (Client → Server): Model weights (~50-100 KB per client)
-- Downlink (Server → Client): Global weights (~50-100 KB per client)
-- Total per round: ~300-600 KB (for 3 clients)
+**Option A: Nginx Reverse Proxy** (Recommended)
 
-**Full Training (20 rounds):**
-- Total communication: ~6-12 MB
-- Compare to centralized: Uploading entire datasets would be 1-5 MB **per hospital**
+```nginx
+# /etc/nginx/sites-available/federated-learning
 
-**Privacy Advantage:**
-- Federated: Only weights shared (reversing to raw data is computationally infeasible)
-- Centralized: Raw patient data must be shared (major privacy risk)
+upstream backend {
+    server localhost:8000;
+}
+
+upstream frontend {
+    server localhost:5173;
+}
+
+server {
+    listen 443 ssl http2;
+    server_name your-domain.com;
+
+    ssl_certificate /etc/letsencrypt/live/your-domain.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/your-domain.com/privkey.pem;
+
+    # Frontend
+    location / {
+        proxy_pass http://frontend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # Backend API
+    location /api {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # WebSocket
+    location /ws {
+        proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $host;
+    }
+}
+
+# HTTP to HTTPS redirect
+server {
+    listen 80;
+    server_name your-domain.com;
+    return 301 https://$server_name$request_uri;
+}
+```
+
+**Enable Configuration**:
+```bash
+sudo ln -s /etc/nginx/sites-available/federated-learning /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+**Option B: Traefik** (Docker-native)
+
+```yaml
+# docker-compose.override.yml
+
+version: '3.8'
+
+services:
+  traefik:
+    image: traefik:v2.9
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.myresolver.acme.tlschallenge=true
+      - --certificatesresolvers.myresolver.acme.email=admin@your-domain.com
+      - --certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./letsencrypt:/letsencrypt
+    networks:
+      - fed_net
+
+  frontend:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=Host(`your-domain.com`)"
+      - "traefik.http.routers.frontend.entrypoints=websecure"
+      - "traefik.http.routers.frontend.tls.certresolver=myresolver"
+
+  backend:
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=Host(`your-domain.com`) && PathPrefix(`/api`, `/ws`)"
+      - "traefik.http.routers.backend.entrypoints=websecure"
+      - "traefik.http.routers.backend.tls.certresolver=myresolver"
+```
+
+### Cloud Deployment
+
+#### AWS EC2 Deployment
+
+```bash
+# 1. Launch EC2 instance (t3.medium or larger)
+# 2. SSH into instance
+ssh -i your-key.pem ubuntu@ec2-xx-xx-xx-xx.compute.amazonaws.com
+
+# 3. Install Docker
+sudo apt update
+sudo apt install -y docker.io docker-compose
+sudo usermod -aG docker ubuntu
+
+# 4. Clone repository
+git clone https://github.com/yourusername/federated-learning-platform.git
+cd federated-learning-platform
+
+# 5. Configure environment
+nano .env  # Update with production values
+
+# 6. Deploy
+docker-compose up -d
+
+# 7. Configure security group to allow:
+# - Port 80 (HTTP)
+# - Port 443 (HTTPS)
+# - Port 8080 (FL Server - only from client IPs)
+```
+
+#### DigitalOcean Droplet
+
+```bash
+# 1. Create Droplet (Docker 1-Click App, 4GB RAM minimum)
+# 2. SSH access
+ssh root@your-droplet-ip
+
+# 3. Clone and deploy (same as EC2 steps 4-6)
+
+# 4. Configure Firewall
+ufw allow 80/tcp
+ufw allow 443/tcp
+ufw allow 8080/tcp  # FL Server
+ufw enable
+```
+
+### Database Backup Strategy
+
+```bash
+# Automated daily backups
+
+# backup.sh
+#!/bin/bash
+BACKUP_DIR="/backups/mysql"
+DATE=$(date +%Y%m%d_%H%M%S)
+MYSQL_CONTAINER="fedapp_db"
+
+docker exec $MYSQL_CONTAINER mysqldump \
+  -u root \
+  -p$DB_PASSWORD \
+  FederatedLearning > "$BACKUP_DIR/federated_$DATE.sql"
+
+# Keep only last 7 days
+find $BACKUP_DIR -type f -mtime +7 -delete
+
+# Add to crontab
+# 0 2 * * * /path/to/backup.sh
+```
+
+### Monitoring & Logging
+
+**Centralized Logging with ELK Stack**:
+
+```yaml
+# docker-compose.logging.yml
+
+version: '3.8'
+
+services:
+  elasticsearch:
+    image: elasticsearch:8.6.0
+    environment:
+      - discovery.type=single-node
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+  logstash:
+    image: logstash:8.6.0
+    volumes:
+      - ./logstash.conf:/usr/share/logstash/pipeline/logstash.conf
+    depends_on:
+      - elasticsearch
+
+  kibana:
+    image: kibana:8.6.0
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+
+volumes:
+  es_data:
+```
 
 ---
 
 ## 🔒 Security & Privacy
 
-### Privacy Guarantees
+### Data Privacy Guarantees
 
 #### 1. Data Localization
-- **Patient data NEVER leaves hospital servers**
-- Each hospital maintains full control over their data
-- No raw data transmission over network
-- Compliant with HIPAA, GDPR, and other regulations
-
-#### 2. Secure Aggregation
-- Only model weights are shared (not gradients or data)
-- Weights are aggregated using FedAvg
+- **Patient data NEVER leaves hospital premises**
+- Only model weights (gradients) are shared
+- Weights are aggregated using FedAvg/FedProx
 - Individual hospital contributions are mathematically combined
-- Cannot reverse-engineer patient data from aggregated weights
+- Reverse-engineering patient data from weights is computationally infeasible
 
-#### 3. Differential Privacy (Future Enhancement)
-- Add noise to weight updates before sharing
-- Provides mathematical privacy guarantee: ε-differential privacy
-- Trade-off: Slightly lower accuracy for stronger privacy
+#### 2. Compliance
+- **HIPAA Compatible**: No PHI (Protected Health Information) transmission
+- **GDPR Compliant**: Data processing occurs locally
+- **Institutional Policies**: Maintains data sovereignty
 
-### Security Measures
+### Authentication & Authorization
 
-#### 1. Authentication & Authorization
+#### JWT-Based Security
+
 ```python
-# JWT-based authentication
-- Tokens expire after 60 minutes
-- Admin-only endpoints protected
-- Client identity verification via unique IDs
+# Token Structure
+{
+  "sub": "user@example.com",  # Subject (user email)
+  "id": 5,                     # User ID
+  "role": "hospital",          # Access level
+  "exp": 1708531200            # Expiration timestamp
+}
+
+# Token Lifespan: 24 hours (configurable)
+# Algorithm: HS256
+# Secret: 32-byte random key
 ```
 
-#### 2. Encrypted Communication
+#### Role-Based Access Control (RBAC)
+
+| Role | Permissions |
+|------|------------|
+| **Admin** | View all projects, manage users, full system access |
+| **Researcher** | Create projects, start training, view own projects |
+| **Hospital** | Join projects, vote, contribute data, view metrics |
+
+#### Security Measures
+
+1. **Password Hashing**: bcrypt with salt (12 rounds)
+2. **SQL Injection Prevention**: Parameterized queries (aiomysql)
+3. **XSS Protection**: React automatically escapes user input
+4. **CORS**: Explicit origin whitelist
+5. **Rate Limiting**: API request throttling (planned)
+6. **Input Validation**: Pydantic schemas enforce data types
+
+### Secure Communication
+
+#### In Development:
+- HTTP (unencrypted)
+- WS (WebSocket)
+
+#### In Production (Recommended):
+- HTTPS with TLS 1.3
+- WSS (WebSocket Secure)
+- gRPC with TLS certificates
+
+**Example: Enable TLS for FL Server**:
+
 ```python
-# For production deployment:
-- Use TLS/SSL for all HTTP communication
-- Use secure WebSocket (wss://)
-- Encrypt gRPC channels
+# fl-server/dynamic_server.py
+
+import ssl
+
+ssl_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+ssl_context.load_cert_chain('/path/to/cert.pem', '/path/to/key.pem')
+
+fl.server.start_server(
+    server_address="0.0.0.0:8080",
+    config=fl.server.ServerConfig(num_rounds=num_rounds),
+    strategy=strategy,
+    ssl_context=ssl_context  # Enable TLS
+)
 ```
 
-#### 3. Database Security
-```python
-# MySQL best practices:
-- Use strong passwords
-- Limit user privileges (principle of least privilege)
-- Enable audit logging
-- Regular backups
-```
+### Threat Model & Mitigations
 
-#### 4. Input Validation
-```python
-# All user inputs validated:
-- File uploads: Check size, type, format
-- API requests: Validate with Pydantic models
-- SQL queries: Use parameterized queries (no SQL injection)
-```
+| Threat | Mitigation |
+|--------|-----------|
+| **Data Breach** | ✅ No raw data centralization |
+| **Model Inversion Attack** | ⚠️ Use differential privacy (future enhancement) |
+| **Byzantine Clients** | ⚠️ Implement robust aggregation (future enhancement) |
+| **Eavesdropping** | ✅ TLS encryption (production) |
+| **SQL Injection** | ✅ Parameterized queries |
+| **Unauthorized Access** | ✅ JWT authentication + RBAC |
+| **XSS** | ✅ React auto-escaping |
+| **CSRF** | ⚠️ CSRF tokens (future enhancement) |
 
-### Threat Model
+### Future Security Enhancements
 
-#### Threats Mitigated:
+1. **Differential Privacy**:
+   ```python
+   # Add noise to weight updates
+   def add_dp_noise(weights, epsilon=1.0):
+       noise = np.random.laplace(0, 1/epsilon, weights.shape)
+       return weights + noise
+   ```
 
-✅ **Data Breach**: Raw data never centralized  
-✅ **Model Inversion**: Aggregated weights don't reveal individual data  
-✅ **Unauthorized Access**: JWT authentication required  
-✅ **SQL Injection**: Parameterized queries used  
-✅ **XSS Attacks**: React escapes user input automatically  
+2. **Secure Aggregation**:
+   - Encrypt individual updates
+   - Server only sees aggregated result
+   - Protects against honest-but-curious server
 
-#### Remaining Risks:
+3. **Byzantine-Robust Aggregation**:
+   ```python
+   def robust_aggregate(weights_list):
+       # Use median or trimmed mean instead of average
+       # Detects and excludes malicious outliers
+       pass
+   ```
 
-⚠️ **Model Poisoning**: Malicious client sends bad weights  
-- Mitigation: Implement Byzantine-robust aggregation (future work)
-
-⚠️ **Inference Attacks**: Adversary infers training data from model  
-- Mitigation: Add differential privacy (future work)
-
-⚠️ **Communication Eavesdropping**: Network traffic intercepted  
-- Mitigation: Use TLS/SSL (recommended for production)
-
----
-
-## 📊 Performance Evaluation
-
-### Experimental Setup
-
-**Dataset:**
-- Diabetes Risk Prediction Dataset
-- Features: 10 (age, BMI, glucose, blood pressure, etc.)
-- Target: Binary (0 = no diabetes, 1 = diabetes)
-- Total samples: 442
-- Split: 
-  - Hospital A: 177 samples (40%)
-  - Hospital B: 133 samples (30%)
-  - Hospital C: 132 samples (30%)
-
-**Model Architecture:**
-```python
-Input: 10 features
-Layer 1: Dense(64, relu) + Dropout(0.2)
-Layer 2: Dense(32, relu) + Dropout(0.2)
-Output: Dense(1, sigmoid)
-Optimizer: Adam
-Loss: Binary Crossentropy
-```
-
-**Training Parameters:**
-- Federated:
-  - Rounds: 20
-  - Local epochs per round: 5
-  - Total epochs: 100 (20 × 5)
-  - Batch size: 32
-- Centralized:
-  - Epochs: 100
-  - Batch size: 32
-
-### Results
-
-#### Accuracy Comparison
-
-| Method | Final Accuracy | Training Time |
-|--------|---------------|---------------|
-| **Federated Learning** | 78.5% | 8 minutes |
-| **Centralized Learning** | 82.3% | 2 minutes |
-| **Difference** | -3.8% | +6 minutes |
-
-**Interpretation:**
-- Federated achieves **95.4%** of centralized accuracy
-- Small accuracy gap (3.8%) is acceptable trade-off for privacy
-- Slower training due to network communication overhead
-
-#### Loss Convergence
-
-| Method | Final Loss | Convergence Speed |
-|--------|-----------|-------------------|
-| **Federated Learning** | 0.450 | Slower (oscillating) |
-| **Centralized Learning** | 0.380 | Faster (smooth) |
-
-**Why Federated is Slower:**
-- Non-IID data across hospitals
-- Communication latency between rounds
-- Clients train on different data distributions
-
-#### Round-by-Round Performance (Federated)
-
-| Round | Accuracy | Loss | Notes |
-|-------|----------|------|-------|
-| 1 | 0.623 | 0.612 | Initial model |
-| 5 | 0.701 | 0.547 | Rapid improvement |
-| 10 | 0.745 | 0.489 | Steady progress |
-| 15 | 0.768 | 0.461 | Slowing improvement |
-| 20 | 0.785 | 0.450 | Converged |
-
-**Key Observations:**
-- Fastest improvement in first 5 rounds
-- Diminishing returns after round 15
-- Could stop early (round 15) to save time
-
-### Communication Cost
-
-**Per Round:**
-- Model size: ~85 KB
-- Upload (each client): 85 KB
-- Download (each client): 85 KB
-- Total per round: 510 KB (3 clients × 170 KB)
-
-**Full Training (20 rounds):**
-- Total communication: **~10.2 MB**
-- Compare to centralized: **~1.5 MB** (uploading all datasets)
-
-**Analysis:**
-- Federated uses **6.8× more bandwidth**
-- Trade-off: Privacy preservation worth extra bandwidth
-- In production: Use model compression to reduce (future work)
-
-### Scalability
-
-#### Number of Clients
-
-| Clients | Rounds | Accuracy | Training Time |
-|---------|--------|----------|---------------|
-| 3 | 20 | 78.5% | 8 min |
-| 5 | 20 | 79.2% | 12 min |
-| 10 | 20 | 80.1% | 20 min |
-
-**Findings:**
-- More clients → better accuracy (more diverse data)
-- Linear time increase with number of clients
-- Diminishing returns beyond 10 clients
-
-#### Dataset Size
-
-| Total Samples | Accuracy (Federated) | Accuracy (Centralized) |
-|---------------|---------------------|------------------------|
-| 442 | 78.5% | 82.3% |
-| 1000 | 82.1% | 84.7% |
-| 5000 | 87.3% | 88.9% |
-
-**Findings:**
-- Larger datasets improve both methods
-- Gap narrows with more data (1.6% at 5000 samples)
-- Federated benefits more from data increase
+4. **Audit Logging**:
+   - Log all training sessions
+   - Track data access patterns
+   - Blockchain-based immutable logs
 
 ---
 
@@ -1592,252 +1577,250 @@ Loss: Binary Crossentropy
 
 ### Common Issues
 
-#### 1. Backend won't start
+#### 1. Backend Won't Start
 
-**Error:** `Database connection failed`
+**Error**: `Database connection failed`
 
-**Solutions:**
+**Solution**:
 ```bash
 # Check MySQL is running
 sudo systemctl status mysql  # Linux
-brew services list  # macOS
+brew services list           # macOS
 
-# Check database exists
+# Verify database exists
 mysql -u root -p
-> SHOW DATABASES;
-> USE FederatedLearning;
+mysql> SHOW DATABASES;
+mysql> USE FederatedLearning;
 
 # Check credentials in .env
-cat backend/.env
+cat backend/.env | grep DB_
 
-# Test connection
-python -c "import aiomysql; print('OK')"
+# Test connection manually
+python -c "import aiomysql; print('aiomysql installed')"
 ```
 
----
+#### 2. FL Server Can't Connect to Backend
 
-#### 2. FL Server can't connect to Backend
+**Error**: `⚠ Backend not available, continuing anyway...`
 
-**Error:** `⚠ Backend not available, continuing anyway...`
-
-**Solutions:**
+**Solution**:
 ```bash
 # Check backend is running
 curl http://localhost:8000/
 
+# Verify API_BASE in fl-server/.env
+cat fl-server/.env
+
 # Check firewall
 sudo ufw status  # Linux
-# Allow port 8000 if needed
 sudo ufw allow 8000
 
 # Check backend logs
-# Should see: "Uvicorn running on http://0.0.0.0:8000"
+docker-compose logs backend  # If using Docker
 ```
 
----
+#### 3. Electron Client Can't Connect to FL Server
 
-#### 3. FL Clients can't connect to Server
+**Error**: `Connection refused` or `Failed to connect`
 
-**Error:** `Connection refused`
-
-**Solutions:**
+**Solution**:
 ```bash
-# Check FL server is running
+# Verify FL server is running
 netstat -tulpn | grep 8080  # Linux
-lsof -i :8080  # macOS
+lsof -i :8080               # macOS
 
-# Check server address in client config
-cat fl-client/config.yaml
+# Check server address in client
+# Should match FL server's IP
 
-# Test connectivity
-telnet localhost 8080
+# For multi-machine setup, check firewall
+sudo ufw allow 8080
 
-# For multi-laptop: check firewall
-sudo ufw allow 8080  # Linux
-
-# Check server IP is correct
-ifconfig | grep "inet "  # Should match config
+# Verify server IP
+ifconfig | grep "inet "  # Get server IP
 ```
 
----
+#### 4. WebSocket Not Connecting
 
-#### 4. Dashboard shows "Offline" status
+**Error**: `WebSocket closed` or connection timeout
 
-**Error:** WebSocket not connecting
-
-**Solutions:**
+**Solution**:
 ```bash
-# Check WebSocket endpoint
-# Open browser console (F12)
-# Should see: "WebSocket Connected"
+# Check WebSocket URL in frontend
+# frontend/src/hooks/useTraining.js
+# Should be: ws://localhost:8000/ws (dev) or wss://domain.com/ws (prod)
 
-# If not, check CORS in backend
-# backend/main.py:
-allow_origins=["http://localhost:3000"]
+# Verify CORS settings in backend
+# backend/app/main.py - check allow_origins list
 
-# Check firewall allows WebSocket
-# No special port needed (uses 8000)
-
-# Try different browser (Firefox, Chrome)
+# Test WebSocket manually
+# Browser console:
+const ws = new WebSocket('ws://localhost:8000/ws');
+ws.onopen = () => console.log('Connected!');
+ws.onerror = (e) => console.error(e);
 ```
 
----
+#### 5. Training Stuck at "Waiting for clients"
 
-#### 5. Training stuck at "Waiting for clients"
+**Error**: `min_available_clients=3` not met
 
-**Error:** `min_available_clients=3` not met
-
-**Solutions:**
+**Solution**:
 ```bash
 # Check how many clients are registered
-curl http://localhost:8000/api/clients | jq
+curl http://localhost:8000/api/clients/ | jq
 
-# Ensure 3 clients are running
-ps aux | grep "client.py"
+# Verify clients are running
+ps aux | grep "universal_client.py"
 
 # Check client logs for errors
-# Each client should show: "✓ Registered with backend"
+# Look for connection errors or authentication failures
 
 # Restart clients if needed
-pkill -f client.py
-# Then restart all 3 clients
+pkill -f universal_client.py
+# Then restart all clients
 ```
 
----
+#### 6. Dataset Validation Fails
 
-#### 6. Centralized training fails
+**Error**: `❌ Schema Mismatch!` or `Missing columns`
 
-**Error:** `Invalid dataset`
+**Solution**:
+```python
+# Check CSV file structure
+import pandas as pd
+df = pd.read_csv('your_dataset.csv')
+print(df.columns.tolist())
 
-**Solutions:**
+# Compare with project schema
+# Should match exactly (case-sensitive, no extra spaces)
+
+# Fix common issues:
+# 1. Remove extra spaces in column names
+df.columns = df.columns.str.strip()
+
+# 2. Ensure target column exists
+if 'Outcome' not in df.columns:
+    print("ERROR: Missing target column")
+
+# 3. Re-save cleaned CSV
+df.to_csv('cleaned_dataset.csv', index=False)
+```
+
+#### 7. Docker Containers Failing
+
+**Error**: Container exits immediately or health check fails
+
+**Solution**:
 ```bash
-# Check CSV format
-head combined_dataset.csv
+# View container logs
+docker-compose logs backend
+docker-compose logs fl-server
+docker-compose logs db
 
-# Should have:
-# - Header row (column names)
-# - Numeric values
-# - Last column is target (0 or 1)
+# Check container status
+docker-compose ps
 
-# Check for missing values
-python -c "import pandas as pd; df = pd.read_csv('combined.csv'); print(df.isnull().sum())"
+# Restart specific service
+docker-compose restart backend
 
-# Merge datasets correctly
-python scripts/merge_datasets.py
+# Rebuild if code changed
+docker-compose build backend
+docker-compose up -d backend
+
+# Reset everything (WARNING: deletes data)
+docker-compose down -v
+docker-compose up -d
 ```
 
----
+#### 8. Port Already in Use
 
-#### 7. Model download fails
+**Error**: `Address already in use: 0.0.0.0:8000`
 
-**Error:** `404 Not Found`
-
-**Solutions:**
+**Solution**:
 ```bash
-# Check models directory exists
-ls -la backend/models/
+# Find process using port
+lsof -ti:8000 | xargs kill  # macOS/Linux
+netstat -ano | findstr :8000  # Windows
 
-# Ensure training completed
-# Check dashboard shows "Completed"
+# Kill specific process
+kill -9 <PID>  # Linux/macOS
+taskkill /PID <PID> /F  # Windows
 
-# Check backend logs
-# Should see: "✓ Global model saved: ..."
-
-# Try listing models first
-curl http://localhost:8000/api/models/list
+# Or change port in configuration
+# backend/app/main.py: change port 8000 to 8001
+# Update all references (frontend .env, fl-server .env)
 ```
-
----
-
-#### 8. Frontend won't build
-
-**Error:** `Module not found`
-
-**Solutions:**
-```bash
-# Reinstall dependencies
-cd frontend
-rm -rf node_modules package-lock.json
-npm install
-
-# Check Node version
-node --version  # Should be 16+
-
-# Clear Vite cache
-rm -rf frontend/.vite
-
-# Try different package manager
-# npm → pnpm or yarn
-```
-
----
-
-#### 9. Slow training
-
-**Issue:** Training takes > 20 minutes
-
-**Solutions:**
-```bash
-# Reduce number of rounds
-# In fl-server/server.py:
-config=fl.server.ServerConfig(num_rounds=10)  # Changed from 20
-
-# Use smaller model
-# In fl-client/client.py:
-# Reduce Dense layer sizes
-
-# Check CPU usage
-top  # Linux/macOS
-# Task Manager  # Windows
-
-# Use GPU if available
-# Install: pip install tensorflow-gpu
-```
-
----
-
-### Error Messages Reference
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| `Address already in use` | Port 8000/8080 occupied | Kill process: `lsof -ti:8000 | xargs kill` |
-| `Connection refused` | Server not running | Start server first |
-| `401 Unauthorized` | Invalid JWT token | Re-login to get new token |
-| `Database pool not initialized` | MySQL connection failed | Check DB credentials |
-| `No module named 'flwr'` | Missing dependencies | `pip install -r requirements.txt` |
-| `WebSocket closed` | Network interruption | Refresh dashboard page |
-| `Minimum clients not met` | < 3 clients connected | Start more clients |
-
----
 
 ### Debug Mode
 
-**Enable Detailed Logging:**
+**Enable Verbose Logging**:
 
 ```bash
 # Backend
 export LOG_LEVEL=DEBUG
-python backend/main.py
+uvicorn app.main:app --log-level debug
 
 # FL Server
 export FLOWER_LOG_LEVEL=DEBUG
-python fl-server/server.py
+python dynamic_server.py
 
-# FL Client
-python client.py --log-level DEBUG ...
+# Electron Client
+# Edit electron-client/python/universal_client.py
+# Set verbose=1 in model.fit() and model.evaluate()
 ```
 
-**Check System Health:**
+### Health Check Script
 
 ```bash
-# System health check script
-./scripts/health_check.sh
+#!/bin/bash
+# health_check.sh
 
-# Manual checks:
-curl http://localhost:8000/  # Backend
-curl http://localhost:8000/api/clients  # Clients
-telnet localhost 8080  # FL Server
-curl http://localhost:3000/  # Frontend
+echo "=== Federated Learning Platform Health Check ==="
+
+# Backend
+echo -n "Backend API: "
+curl -s http://localhost:8000/ > /dev/null && echo "✅ Running" || echo "❌ Down"
+
+# Database
+echo -n "MySQL Database: "
+docker exec fedapp_db mysqladmin ping -h localhost -u root -p$DB_PASSWORD 2>/dev/null && echo "✅ Running" || echo "❌ Down"
+
+# FL Server
+echo -n "FL Server: "
+nc -zv localhost 8080 2>&1 | grep -q succeeded && echo "✅ Running" || echo "❌ Down"
+
+# Frontend
+echo -n "Frontend: "
+curl -s http://localhost:5173/ > /dev/null && echo "✅ Running" || echo "❌ Down"
+
+echo "=========================================="
+```
+
+### Performance Tuning
+
+**Slow Training**:
+```python
+# Reduce model complexity
+# In project model code:
+Dense(32, ...)  # Instead of Dense(128, ...)
+
+# Reduce number of rounds
+num_rounds = 10  # Instead of 20
+
+# Increase batch size (faster, less accurate)
+batch_size = 64  # Instead of 32
+
+# Reduce local epochs
+local_epochs = 3  # Instead of 5
+```
+
+**High Memory Usage**:
+```bash
+# Limit TensorFlow memory growth
+# In universal_client.py:
+import tensorflow as tf
+gpus = tf.config.list_physical_devices('GPU')
+if gpus:
+    tf.config.experimental.set_memory_growth(gpus[0], True)
 ```
 
 ---
@@ -1846,178 +1829,101 @@ curl http://localhost:3000/  # Frontend
 
 We welcome contributions! Please follow these guidelines:
 
-### Development Setup
+### Development Workflow
 
 ```bash
-# Fork the repository
-git clone https://github.com/yourusername/federated-learning-healthcare.git
-cd federated-learning-healthcare
+# 1. Fork repository
+git clone https://github.com/yourusername/federated-learning-platform.git
+cd federated-learning-platform
 
-# Create feature branch
-git checkout -b feature/your-feature-name
+# 2. Create feature branch
+git checkout -b feature/amazing-feature
 
-# Make changes and test
-pytest tests/
+# 3. Make changes
 
-# Commit with meaningful message
-git commit -m "Add feature: description"
+# 4. Test changes
+pytest tests/  # Backend tests
+npm test       # Frontend tests
 
-# Push and create pull request
-git push origin feature/your-feature-name
+# 5. Commit with meaningful message
+git commit -m "Add amazing feature: description"
+
+# 6. Push to fork
+git push origin feature/amazing-feature
+
+# 7. Open Pull Request
 ```
 
 ### Code Style
 
-**Python:**
+**Python** (PEP 8):
 ```bash
-# Use Black formatter
-pip install black
-black backend/ fl-server/ fl-client/
+# Format code
+black backend/ fl-server/
 
-# Use pylint
-pip install pylint
-pylint backend/main.py
+# Lint code
+pylint backend/app/main.py
 ```
 
-**JavaScript:**
+**JavaScript** (Prettier + ESLint):
 ```bash
-# Use Prettier
-npm install --save-dev prettier
+# Format code
 npx prettier --write frontend/src/
+
+# Lint code
+npm run lint
 ```
 
-### Testing
+### Commit Message Convention
 
-```bash
-# Run all tests
-pytest tests/ -v
+```
+<type>(<scope>): <subject>
 
-# Run specific test
-pytest tests/test_backend.py::test_login
+<body>
 
-# Coverage report
-pytest --cov=backend tests/
+<footer>
+```
+
+**Types**:
+- `feat`: New feature
+- `fix`: Bug fix
+- `docs`: Documentation only
+- `style`: Code style changes (formatting)
+- `refactor`: Code restructuring
+- `test`: Adding tests
+- `chore`: Build/tooling changes
+
+**Example**:
+```
+feat(backend): add differential privacy support
+
+Implement DP-SGD algorithm with configurable epsilon parameter.
+Adds noise to gradients before aggregation.
+
+Closes #123
 ```
 
 ### Pull Request Checklist
 
 - [ ] Code follows style guidelines
-- [ ] Tests added for new features
 - [ ] All tests pass
+- [ ] New tests added for new features
 - [ ] Documentation updated
-- [ ] Commit messages are clear
 - [ ] No console.log() in production code
 - [ ] No hardcoded credentials
-
----
-
-## 🚀 Future Enhancements
-
-### Planned Features
-
-#### 1. Differential Privacy
-```python
-# Add noise to weight updates
-def add_dp_noise(weights, epsilon=1.0):
-    noise = np.random.laplace(0, 1/epsilon, weights.shape)
-    return weights + noise
-```
-
-**Benefits:**
-- Mathematical privacy guarantee
-- Protection against inference attacks
-- Configurable privacy-accuracy trade-off
-
----
-
-#### 2. Secure Aggregation
-```python
-# Encrypt individual updates
-# Server only sees aggregated result
-# No single party sees individual weights
-```
-
-**Benefits:**
-- Protection against honest-but-curious server
-- Stronger privacy than vanilla FedAvg
-
----
-
-#### 3. Byzantine-Robust Aggregation
-```python
-# Detect and exclude malicious clients
-def robust_aggregate(weights_list):
-    # Use median or trimmed mean
-    # Instead of simple average
-    pass
-```
-
-**Benefits:**
-- Protection against poisoning attacks
-- Robust to outliers
-
----
-
-#### 4. Blockchain Integration
-```
-# Immutable audit trail
-- Record model versions on blockchain
-- Track client contributions
-- Enable incentive mechanisms
-```
-
-**Benefits:**
-- Transparency
-- Accountability
-- Incentivization
-
----
-
-#### 5. Advanced ML Models
-```python
-# Support for:
-- CNNs (image data)
-- RNNs/LSTMs (time series)
-- Transformers (text data)
-- Custom architectures
-```
-
----
-
-#### 6. Cloud Deployment
-```bash
-# Docker containers
-docker-compose up
-
-# Kubernetes orchestration
-kubectl apply -f k8s/
-
-# Cloud providers
-# - AWS ECS
-# - Google Cloud Run
-# - Azure Container Instances
-```
-
----
-
-### Research Directions
-
-1. **Personalized FL**: Adapt global model to local data distribution
-2. **Asynchronous FL**: Don't wait for all clients each round
-3. **Hierarchical FL**: Multi-level aggregation (regional → global)
-4. **Cross-Device FL**: Scale to millions of mobile devices
-5. **Federated Transfer Learning**: Pre-train on public data, fine-tune federally
+- [ ] Commit messages are clear
+- [ ] Branch is up-to-date with main
 
 ---
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **MIT License**.
 
 ```
 MIT License
 
-Copyright (c) 2024 [Your Name]
+Copyright (c) 2026 [Your Name/Organization]
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -2044,28 +1950,21 @@ SOFTWARE.
 
 ### Frameworks & Libraries
 
-- **Flower**: Federated Learning framework by Flower Labs
-- **TensorFlow**: Machine learning framework by Google
-- **FastAPI**: Modern API framework by Sebastián Ramírez
-- **React**: UI library by Meta
+- **Flower** - Federated Learning framework by Flower Labs
+- **TensorFlow** - Machine learning framework by Google
+- **FastAPI** - Modern API framework by Sebastián Ramírez
+- **React** - UI library by Meta
 
 ### Research Papers
 
-1. McMahan et al. (2017) - "Communication-Efficient Learning of Deep Networks from Decentralized Data" - Original FedAvg paper
-2. Kairouz et al. (2021) - "Advances and Open Problems in Federated Learning" - Comprehensive FL survey
-3. Li et al. (2020) - "Federated Learning on Non-IID Data" - Handling data heterogeneity
+1. McMahan et al. (2017) - *"Communication-Efficient Learning of Deep Networks from Decentralized Data"* - Original FedAvg paper
+2. Li et al. (2020) - *"Federated Optimization in Heterogeneous Networks"* - FedProx algorithm
+3. Kairouz et al. (2021) - *"Advances and Open Problems in Federated Learning"* - Comprehensive FL survey
 
 ### Datasets
 
-- Diabetes Dataset: UCI Machine Learning Repository
-- Synthetic data generation inspired by medical data standards
-
-### Contributors
-
-- [Your Name] - Initial work and maintainer
-- [Team Member 1] - Backend development
-- [Team Member 2] - Frontend development
-- [Team Member 3] - FL implementation
+- UCI Machine Learning Repository - Diabetes dataset
+- Synthetic medical data generation inspired by MIMIC-III schema
 
 ---
 
@@ -2073,24 +1972,21 @@ SOFTWARE.
 
 ### Project Links
 
-- **GitHub**: https://github.com/yourusername/federated-learning-healthcare
+- **GitHub**: https://github.com/yourusername/federated-learning-platform
 - **Documentation**: https://docs.yourproject.com
-- **Issues**: https://github.com/yourusername/federated-learning-healthcare/issues
+- **Issues**: https://github.com/yourusername/federated-learning-platform/issues
 
-### Contact
+### Getting Help
 
-- **Email**: your.email@example.com
-- **LinkedIn**: https://linkedin.com/in/yourprofile
-- **Twitter**: @yourhandle
+1. Check [Troubleshooting](#-troubleshooting) section
+2. Search [existing issues](https://github.com/yourusername/federated-learning-platform/issues)
+3. Create a [new issue](https://github.com/yourusername/federated-learning-platform/issues/new)
+4. Email: support@yourproject.com
 
-### Support
+### Community
 
-For questions and support:
-
-1. Check [Troubleshooting](#troubleshooting) section
-2. Search [existing issues](https://github.com/yourusername/federated-learning-healthcare/issues)
-3. Create a [new issue](https://github.com/yourusername/federated-learning-healthcare/issues/new)
-4. Join our [Discord community](https://discord.gg/yourserver)
+- **Discord**: [Join Server](https://discord.gg/yourserver)
+- **Slack**: [Workspace Link](https://yourworkspace.slack.com)
 
 ---
 
@@ -2098,41 +1994,56 @@ For questions and support:
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
 ![Tests](https://img.shields.io/badge/tests-100%25-brightgreen)
-![Coverage](https://img.shields.io/badge/coverage-85%25-yellow)
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
+![Docker](https://img.shields.io/badge/docker-ready-blue)
+![Production](https://img.shields.io/badge/production-ready-green)
 
-**Current Status:** ✅ Production Ready
+**Current Version**: 2.0.0  
+**Last Updated**: February 2026  
+**Status**: ✅ Production Ready
 
-**Last Updated:** January 2025
-
-**Tested On:**
+**Tested On**:
 - Ubuntu 22.04 LTS
-- macOS Ventura 13+
+- macOS 14+ (Sonoma)
 - Windows 11
 
 ---
 
 ## 🎓 Citation
 
-If you use this project in your research, please cite:
+If you use this platform in your research, please cite:
 
 ```bibtex
-@misc{federated-learning-healthcare-2024,
+@software{federated_learning_platform_2026,
   author = {Your Name},
-  title = {Privacy-Preserving Federated Learning System for Chronic Disease Risk Prediction},
-  year = {2024},
+  title = {Privacy-Preserving Federated Learning Platform for Healthcare},
+  year = {2026},
   publisher = {GitHub},
-  url = {https://github.com/yourusername/federated-learning-healthcare}
+  url = {https://github.com/yourusername/federated-learning-platform},
+  version = {2.0.0}
 }
 ```
 
 ---
 
-## ⭐ Star History
+## 🗺️ Roadmap
 
-If you find this project useful, please consider giving it a star ⭐
+### v2.1 (Q2 2026)
+- [ ] Differential Privacy implementation
+- [ ] Secure Aggregation protocol
+- [ ] Mobile client (React Native)
+- [ ] Advanced analytics dashboard
 
-[![Star History Chart](https://api.star-history.com/svg?repos=yourusername/federated-learning-healthcare&type=Date)](https://star-history.com/#yourusername/federated-learning-healthcare&Date)
+### v2.2 (Q3 2026)
+- [ ] Byzantine-robust aggregation
+- [ ] Blockchain-based audit logs
+- [ ] Automated hyperparameter tuning
+- [ ] Multi-model training support
+
+### v3.0 (Q4 2026)
+- [ ] Asynchronous FL
+- [ ] Hierarchical FL (regional → global)
+- [ ] Transfer learning support
+- [ ] GPU acceleration
 
 ---
 
@@ -2140,6 +2051,8 @@ If you find this project useful, please consider giving it a star ⭐
 
 **Built with ❤️ for Privacy-Preserving Healthcare AI**
 
-[⬆ Back to Top](#privacy-preserving-federated-learning-system-for-chronic-disease-risk-prediction)
+⭐ **Star this repo** if you find it useful!
+
+[⬆ Back to Top](#privacy-preserving-federated-learning-platform)
 
 </div>
