@@ -6,16 +6,17 @@ backend/app/__pycache__/
 backend/app/routers/__pycache__/
 backend/app/models/__pycache__/
 backend/app/services/__pycache__/
+
 fl-client/node_modules/
 fl-client/
+
 .env
+node_modules/
 
 frontend/node_modules/
-frontend/.env
 
 zDummy/
-
-
+production.txt
 
 # Ignore Python virtual environment named FedApp
 FedApp/
