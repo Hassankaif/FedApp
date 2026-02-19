@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 # Load environment variables from .env at project root
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
-API_BASE = os.getenv("API_BASE", "http://localhost:8000")
+# uses internal Docker network to communicate with backend service
+API_BASE = os.getenv("API_BASE", "http://backend:8000")
 POLL_INTERVAL = 3
 
 # --- 1. The Reporting Logic (Mixin) ---

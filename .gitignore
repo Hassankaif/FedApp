@@ -18,5 +18,9 @@ frontend/node_modules/
 zDummy/
 production.txt
 
+electron-client/dist/
+electron-client/node_modules/
+electron-client/dist_electron/
+
 # Ignore Python virtual environment named FedApp
 FedApp/

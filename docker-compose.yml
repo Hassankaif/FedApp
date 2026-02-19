@@ -1,5 +1,3 @@
-# version: '3.8'
-
 services:
   backend:
     build: ./backend
@@ -7,58 +5,63 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./backend:/app  # Hot reload for code
-      - ./backend/models:/app/models # Persist models
-      - ./backend/datasets:/app/datasets # Persist datasets
+      - ./backend:/app
+      - ./backend/models:/app/models
+      - ./backend/datasets:/app/datasets
     env_file:
-      - ./backend/.env
+      - .env  # Reads the root env file
     depends_on:
       - db
     networks:
       - fed_net
-#===============================================================================================
+
   fl-server:
-      build: ./fl-server
-      container_name: fedapp_fl_server
-      ports:
-        - "8080:8080"
-      environment:
-        - PROJECT_ID=1
-        - API_BASE=http://backend:8000  # Point to backend service
-      depends_on:
-        - backend
-      networks:
-        - fed_net
-#===============================================================================================
-  frontend:
-    build: ./frontend
-    container_name: fedapp_frontend
+    build: ./fl-server
+    container_name: fedapp_fl_server
     ports:
-      - "5173:80"  # Maps localhost:5173 to container port 80 (nginx)
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      - PROJECT_ID=1
+      - API_BASE=${INTERNAL_API_URL} # Connects securely within Docker
     depends_on:
       - backend
     networks:
       - fed_net
-#===============================================================================================
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Passes the Cloudflare domains to Vite during the build
+        - VITE_API_BASE_URL=${DOMAIN_API}
+        - VITE_WS_URL=${WS_URL}
+    container_name: fedapp_frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - fed_net
+
   db:
     image: mysql:8.0
     container_name: fedapp_db
     restart: always
     environment:
-      MYSQL_ROOT_PASSWORD: kaif&*9363
-      MYSQL_DATABASE: FederatedLearning
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
     ports:
-      - "3307:3306" # Expose on 3307 to avoid local MySQL conflicts
+      - "3307:3306"
     volumes:
       - db_data:/var/lib/mysql
     networks:
       - fed_net
-#===============================================================================================
+
 volumes:
   db_data:
-#===============================================================================================
+
 networks:
   fed_net:
     driver: bridge
-
-#===============================================================================================

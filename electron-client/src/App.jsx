@@ -4,10 +4,12 @@ import './App.css';
 import axios from 'axios';
 
 // Create axios instance with base URL
+// const api = axios.create({
+//   baseURL: 'http://localhost:8000/api'
+// });
 const api = axios.create({
-  baseURL: 'http://localhost:8000/api'
+  baseURL: 'https://api.kaif-federatedapp.me/api' 
 });
-
 function App() {
   // ==================== AUTHENTICATION STATE ====================
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -26,12 +28,25 @@ function App() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   
   // ==================== TRAINING CONFIGURATION STATE ====================
-  const [config, setConfig] = useState({
-    apiUrl: 'http://localhost:8000',
-    flServerUrl: 'localhost:8080',
-    projectId: null,
-    clientId: ''
-  });
+  // const [config, setConfig] = useState({
+  //   apiUrl: 'http://localhost:8000',
+  //   flServerUrl: 'localhost:8080',
+  //   projectId: null,
+  //   clientId: ''
+  // });
+
+//   const [config, setConfig] = useState({
+//   apiUrl: 'http://139.59.87.244:8000',      // Updated
+//   flServerUrl: '139.59.87.244:8080',       // Updated
+//   projectId: null,
+//   clientId: ''
+// });
+ const [config, setConfig] = useState({
+            apiUrl: 'https://api.kaif-federatedapp.me',      
+            flServerUrl: 'fl.kaif-federatedapp.me:443',       
+            projectId: null,
+            clientId: ''
+        });
   
   const [csvPath, setCsvPath] = useState('');
   const [logs, setLogs] = useState([]);

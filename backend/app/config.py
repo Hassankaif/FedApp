@@ -14,8 +14,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440
 
+    # CORS
+    ALLOWED_ORIGINS: str = "http://localhost:5173" #fallback default, should be overridden by .env for production to ensure security
+
     # Frontend URL (for CORS)
-    VITE_API_URL: str = "http://localhost:5173"
+    # VITE_API_URL: str = "http://localhost:5173"
 
     class Config:
         # Load from the .env file in the root directory
@@ -33,6 +36,11 @@ class Settings(BaseSettings):
             "db": self.DB_NAME,
             "autocommit": True
         }
+    
+    @property
+    def CORS_ORIGINS_LIST(self):
+        return [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
 
 settings = Settings()
+
 # DB_CONFIG = settings.DB_CONFIG  # This will be used in database.py for aiomysql connection pool to ensure it always reflects the latest settings from the .env file

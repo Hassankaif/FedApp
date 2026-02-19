@@ -53,7 +53,8 @@ export const useTraining = (token) => {
     // const wsUrl = isLocal 
     //   ? "ws://127.0.0.1:8000/ws" 
     //   : "ws://139.59.87.244:8000/ws";
-    const wsUrl = import.meta.env.VITE_WS_URL || "ws://localhost:8000/ws";
+    
+    const wsUrl = import.meta.env.VITE_WS_URL || "wss://api.kaif-federatedapp.me/ws";
     if (ws.current) ws.current.close(); // Close existing connection if any
     
     // WebSocket Connection

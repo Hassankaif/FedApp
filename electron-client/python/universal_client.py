@@ -1,4 +1,5 @@
 # UniversalClient.py (local dev version)
+from email import parser
 import flwr as fl
 import tensorflow as tf
 import pandas as pd
@@ -113,8 +114,12 @@ def main():
     parser.add_argument('--project-id', type=int, required=True)
     parser.add_argument('--client-id', type=str, required=True)
     parser.add_argument('--data-path', type=str, required=True)
-    parser.add_argument('--server', type=str, default='localhost:8080')
-    parser.add_argument('--api-url', type=str, default='http://localhost:8000')
+    # parser.add_argument('--server', type=str, default='localhost:8080')
+    # parser.add_argument('--api-url', type=str, default='http://localhost:8000')
+    # parser.add_argument('--server', type=str, default='139.59.87.244:8080') # Updated
+    # parser.add_argument('--api-url', type=str, default='http://139.59.87.244:8000') # Updated
+    parser.add_argument('--server', type=str, default='fl.kaif-federatedapp.me:443') 
+    parser.add_argument('--api-url', type=str, default='https://api.kaif-federatedapp.me')
     args = parser.parse_args()
 
     print(f"🚀 Universal FL Client: {args.client_id}", flush=True)

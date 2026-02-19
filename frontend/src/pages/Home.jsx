@@ -78,7 +78,8 @@ const Home = () => {
         {/* 4. Bottom Center Download Button */}
         <div className="mt-16 text-center">
           <a 
-            href="https://your-website.com/downloads/electronapp.exe" 
+            href="/downloads/FedAppClient.exe"  
+            download
             className="inline-flex items-center gap-2 px-10 py-4 bg-slate-900 text-white font-bold rounded-2xl hover:bg-black transition-all transform hover:scale-105 shadow-xl"
           >
             <span>📥</span> Download Electron Client (.exe)

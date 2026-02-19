@@ -79,6 +79,14 @@ const Login = ({ onLogin, error }) => {
             </Link>
           </p>
         </div>
+        <div className="mt-4 text-center">
+          <p className='text-sm text-violet-200'>
+            Go To Home
+          <Link to="/" className="font-medium text-white hover:text-indigo-100 underline decoration-indigo-400">
+            Home
+          </Link>
+          </p>
+        </div>
       </div>
     </div>
   );

@@ -7,6 +7,7 @@ from fastapi import WebSocket, WebSocketDisconnect
 from app.database import lifespan
 from app.socket_manager import manager
 from app.routers import auth, training, metrics, clients, models, projects
+from app.config import settings
 
 # Create directories
 os.makedirs("models", exist_ok=True)
@@ -18,15 +19,16 @@ origins = [
     "http://139.59.87.244:5173",  # DigitalOcean Frontend access (if frontend is hosted on the same server)
     "http://139.59.87.244",       # Standard Port 80 access for DigitalOcean (allowing both with and without port for flexibility)
     "http://localhost:5173",      # Local Testing from frontend 
-    "http://127.0.0.1:5173",       # Local Testing from frontend (alternative localhost)
+    "http://127.0.0.1:5173",      # Local Testing from frontend (alternative localhost)
     "http://localhost:3000",      # for local development only, remove at production
-    "http://127.0.0.1:3000",        # for local development only, remove at production (alternative localhost)
-    "http://localhost:5174",           # electron app cors allow, for local development only, remove at production
+    "http://127.0.0.1:3000",      # for local development only, remove at production (alternative localhost)
+    "http://localhost:5174",      # electron app cors allow, for local development only, remove at production
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,        # <--- Explicitly specify allowed origins for security
+    # allow_origins=origins,        
+    allow_origins=settings.CORS_ORIGINS_LIST,   # Use CORS_ORIGINS_LIST from settings for flexibility and security. imported from app.config, which reads from .env file. This allows us to easily manage allowed origins without changing code.
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
